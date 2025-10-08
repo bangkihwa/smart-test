@@ -3,6 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertStudentSchema, insertTestSchema, insertTestResultSchema } from "@shared/schema";
 import { z } from "zod";
+import { createAirtableSync } from "./airtable-sync";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Student routes
@@ -290,6 +291,65 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(results);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch test results" });
+    }
+  });
+
+  // Airtable sync routes
+  app.post("/api/airtable/sync", async (req, res) => {
+    try {
+      const { apiKey, baseId } = req.body;
+      
+      if (!apiKey || !baseId) {
+        return res.status(400).json({ message: "API key and Base ID are required" });
+      }
+
+      const airtableSync = createAirtableSync(apiKey, baseId);
+      if (!airtableSync) {
+        return res.status(500).json({ message: "Failed to initialize Airtable sync" });
+      }
+
+      const result = await airtableSync.syncAllToAirtable();
+      res.json({
+        success: true,
+        synced: result,
+        message: `Synced ${result.students} students, ${result.tests} tests, and ${result.results} results to Airtable`,
+      });
+    } catch (error: any) {
+      console.error("Airtable sync error:", error);
+      res.status(500).json({ 
+        message: "Failed to sync with Airtable",
+        error: error.message 
+      });
+    }
+  });
+
+  app.post("/api/airtable/fetch", async (req, res) => {
+    try {
+      const { apiKey, baseId } = req.body;
+      
+      if (!apiKey || !baseId) {
+        return res.status(400).json({ message: "API key and Base ID are required" });
+      }
+
+      const airtableSync = createAirtableSync(apiKey, baseId);
+      if (!airtableSync) {
+        return res.status(500).json({ message: "Failed to initialize Airtable connection" });
+      }
+
+      const students = await airtableSync.getAirtableStudents();
+      const results = await airtableSync.getAirtableTestResults();
+
+      res.json({
+        success: true,
+        data: { students, results },
+        message: `Fetched ${students.length} students and ${results.length} results from Airtable`,
+      });
+    } catch (error: any) {
+      console.error("Airtable fetch error:", error);
+      res.status(500).json({ 
+        message: "Failed to fetch from Airtable",
+        error: error.message 
+      });
     }
   });
 

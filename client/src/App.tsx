@@ -8,6 +8,7 @@ import AdminDashboard from "@/pages/admin-dashboard";
 import TestResults from "@/pages/test-results";
 import Analytics from "@/pages/analytics";
 import Reports from "@/pages/reports";
+import AirtableSettings from "@/pages/airtable-settings";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -17,6 +18,7 @@ function Router() {
       <Route path="/admin" component={AdminDashboard} />
       <Route path="/analytics" component={Analytics} />
       <Route path="/reports" component={Reports} />
+      <Route path="/airtable" component={AirtableSettings} />
       <Route path="/results/:resultId" component={TestResults} />
       <Route component={NotFound} />
     </Switch>
