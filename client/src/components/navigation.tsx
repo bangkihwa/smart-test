@@ -67,11 +67,11 @@ export default function Navigation({ isAdmin = false }: NavigationProps) {
         </nav>
 
         <div className="p-4 border-t border-border">
-          <Link href="/" className="w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-foreground hover:bg-muted transition-colors font-medium">
+          <Link href="/student" className="w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-foreground hover:bg-muted transition-colors font-medium">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
             </svg>
-            <span>학생 모드</span>
+            <span>학생 테스트</span>
           </Link>
         </div>
       </aside>
