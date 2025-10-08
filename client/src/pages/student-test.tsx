@@ -47,20 +47,26 @@ export default function StudentTest() {
         description: `${student.name}님, 환영합니다!`,
       });
     },
-    onError: async (error: any) => {
-      // Try to extract error message from response
+    onError: (error: any) => {
+      // Extract error message from Error object
       let errorMessage = "다시 시도해주세요.";
-      if (error.response) {
-        try {
-          const errorData = await error.response.json();
-          errorMessage = errorData.message || errorMessage;
-          
-          // If mismatch error, show stored info
-          if (errorData.storedName && errorData.storedGrade) {
-            errorMessage = `${errorData.message}\n등록된 정보: ${errorData.storedName} (${errorData.storedGrade})`;
+      
+      if (error.message) {
+        // error.message format: "409: {json body}"
+        const match = error.message.match(/^\d+:\s*(.+)$/);
+        if (match) {
+          try {
+            const errorData = JSON.parse(match[1]);
+            errorMessage = errorData.message || errorMessage;
+            
+            // If mismatch error, show stored info
+            if (errorData.storedName && errorData.storedGrade) {
+              errorMessage = `${errorData.message}\n등록된 정보: ${errorData.storedName} (${errorData.storedGrade})`;
+            }
+          } catch {
+            // If can't parse JSON, use the whole message after status code
+            errorMessage = match[1] || errorMessage;
           }
-        } catch {
-          // If can't parse, use default message
         }
       }
       
