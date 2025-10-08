@@ -164,11 +164,16 @@ export class AirtableStorage implements IStorage {
       formula = `{Grade} = '${grade}'`;
     }
 
+    const selectOptions: any = {
+      sort: [{ field: 'Created At', direction: 'desc' }]
+    };
+
+    if (formula) {
+      selectOptions.filterByFormula = formula;
+    }
+
     await this.base(this.studentsTable)
-      .select({
-        filterByFormula: formula || undefined,
-        sort: [{ field: 'Created At', direction: 'desc' }]
-      })
+      .select(selectOptions)
       .eachPage((records: any[], fetchNextPage: () => void) => {
         records.forEach(record => {
           students.push({
@@ -533,13 +538,18 @@ export class AirtableStorage implements IStorage {
       formulas.push(`IS_BEFORE({Completed At}, '${filters.endDate.toISOString()}')`);
     }
 
-    const filterFormula = formulas.length > 0 ? `AND(${formulas.join(', ')})` : undefined;
+    const filterFormula = formulas.length > 0 ? `AND(${formulas.join(', ')})` : '';
+
+    const selectOptions: any = {
+      sort: [{ field: 'Completed At', direction: 'desc' }]
+    };
+
+    if (filterFormula) {
+      selectOptions.filterByFormula = filterFormula;
+    }
 
     await this.base(this.resultsTable)
-      .select({
-        filterByFormula: filterFormula,
-        sort: [{ field: 'Completed At', direction: 'desc' }]
-      })
+      .select(selectOptions)
       .eachPage((records: any[], fetchNextPage: () => void) => {
         records.forEach(record => {
           results.push({
