@@ -63,18 +63,6 @@ export default function Navigation({ isAdmin = false }: NavigationProps) {
                 <span>통계 보고서</span>
               </Link>
             </li>
-            <li>
-              <Link href="/airtable" data-testid="nav-airtable" className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg font-medium transition-colors ${
-                location === '/airtable' 
-                  ? 'bg-primary text-primary-foreground' 
-                  : 'text-foreground hover:bg-muted'
-              }`}>
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" />
-                </svg>
-                <span>Airtable 연동</span>
-              </Link>
-            </li>
           </ul>
         </nav>
 
