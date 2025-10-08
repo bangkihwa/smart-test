@@ -11,6 +11,14 @@ Preferred communication style: Simple, everyday language.
 ## Recent Changes (October 2025)
 
 ### Completed Features
+- **Student Login System** (client/src/pages/student-test.tsx, server/routes.ts)
+  - Direct student login with ID, name, and grade input
+  - Backend validation with Zod schema (trim, min length, grade enum)
+  - Automatic student creation if doesn't exist
+  - Mismatch detection for existing students
+  - Error messages display stored student info on mismatch
+  - Route structure: / (student login), /admin (admin dashboard)
+
 - **Performance Analytics Dashboard** (client/src/pages/analytics.tsx)
   - Student and grade-level filtering
   - Summary statistics (average score, total students, tests taken)
@@ -82,6 +90,7 @@ Preferred communication style: Simple, everyday language.
 - CRUD operations for all primary entities
 - Search and filtering capabilities for students and test results
 - Validation using Zod schemas derived from Drizzle schema definitions
+- Student login endpoint (POST /api/students/login) with validation and auto-creation
 
 ### External Dependencies
 
@@ -123,14 +132,20 @@ Preferred communication style: Simple, everyday language.
 ## Key Application Features
 
 ### Student Features
-- Mobile-optimized OMR interface for test taking (30 questions in 3 sections)
-- Real-time answer selection and modification
-- Instant automatic grading upon submission
-- Intelligent task assignment based on error count:
-  - 0-2 errors: Light task
-  - 3-4 errors: Medium task
-  - 5+ errors: Heavy task
-- Detailed results view with section-specific feedback
+- **Login System**:
+  - Simple login form with student ID, name, and grade selection
+  - Automatic account creation for new students
+  - Data validation ensures correct information entry
+  - Mismatch detection prevents duplicate accounts with wrong info
+- **OMR Test Interface**:
+  - Mobile-optimized OMR interface for test taking (30 questions in 3 sections)
+  - Real-time answer selection and modification
+  - Instant automatic grading upon submission
+  - Intelligent task assignment based on error count:
+    - 0-2 errors: Light task
+    - 3-4 errors: Medium task
+    - 5+ errors: Heavy task
+  - Detailed results view with section-specific feedback
 
 ### Administrator Features
 - **Student Management**: CRUD operations for students (중등1-3학년, 고등1-3학년)
