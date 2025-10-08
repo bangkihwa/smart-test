@@ -2,11 +2,37 @@
 
 ## Overview
 
-This is a full-stack web application for managing student tests and results. Built with React, Express, and PostgreSQL, the system allows students to take tests via an OMR (Optical Mark Recognition) interface and provides administrators with tools to manage students, tests, and view results. The application features a mobile-responsive design with Korean language support.
+This is a full-stack web application for managing student tests and results at 목동에이원 academy. Built with React, Express, and PostgreSQL, the system allows students to take tests via an OMR (Optical Mark Recognition) interface and provides administrators with comprehensive tools to manage students, tests, view results, analyze performance trends, generate statistical reports, and sync data with Airtable. The application features a mobile-responsive design with Korean language support.
 
 ## User Preferences
 
 Preferred communication style: Simple, everyday language.
+
+## Recent Changes (October 2025)
+
+### Completed Features
+- **Performance Analytics Dashboard** (client/src/pages/analytics.tsx)
+  - Student and grade-level filtering
+  - Summary statistics (average score, total students, tests taken)
+  - Score trend visualization using Recharts line charts
+  - Time-based performance tracking across multiple tests
+
+- **Statistical Reports System** (client/src/pages/reports.tsx)
+  - Comprehensive filtering by test, grade level, and date range
+  - Detailed summary statistics and performance metrics
+  - CSV export functionality for data analysis
+  - Print-friendly report views for physical documentation
+
+- **Airtable Integration** (server/airtable-sync.ts, client/src/pages/airtable-settings.tsx)
+  - Bidirectional sync with Airtable for external database backup
+  - Configuration UI for API key and Base ID management
+  - Data export to Airtable (students, tests, results)
+  - Data import from Airtable for viewing external records
+  - Real-time sync status and result display
+
+### Pending Future Enhancements
+- Parent notification system for test result alerts
+- Support for different question types (true/false, short answer, essay)
 
 ## System Architecture
 
@@ -79,6 +105,11 @@ Preferred communication style: Simple, everyday language.
 - clsx & tailwind-merge - Conditional className utilities
 - class-variance-authority - Component variant management
 - nanoid - Unique ID generation
+- Recharts - Chart library for data visualization and analytics
+
+**External Integrations**
+- Airtable SDK - External database synchronization and backup
+- WebSocket support for real-time features
 
 **Development Tools**
 - Replit-specific plugins for development banner and error overlay
@@ -88,3 +119,55 @@ Preferred communication style: Simple, everyday language.
 
 **Fonts**
 - Google Fonts (Inter, Noto Sans KR) for multilingual typography with Korean language support
+
+## Key Application Features
+
+### Student Features
+- Mobile-optimized OMR interface for test taking (30 questions in 3 sections)
+- Real-time answer selection and modification
+- Instant automatic grading upon submission
+- Intelligent task assignment based on error count:
+  - 0-2 errors: Light task
+  - 3-4 errors: Medium task
+  - 5+ errors: Heavy task
+- Detailed results view with section-specific feedback
+
+### Administrator Features
+- **Student Management**: CRUD operations for students (중등1-3학년, 고등1-3학년)
+- **Test Creation**: Custom multi-section tests with configurable answers and assignments
+- **Results Dashboard**: Comprehensive view of all test results with search and filtering
+- **Performance Analytics**: 
+  - Student and grade-level performance trends
+  - Score visualization with line charts
+  - Time-based progress tracking
+  - Summary statistics
+- **Statistical Reports**:
+  - Comprehensive filtering (test, grade, date range)
+  - Summary statistics and performance metrics
+  - CSV export for data analysis
+  - Print-friendly report views
+- **Airtable Integration**:
+  - Bidirectional database synchronization
+  - Data backup to external Airtable base
+  - Configuration UI for API credentials
+  - Real-time sync status and results
+
+## Technical Implementation Notes
+
+### Grading Logic (server/routes.ts)
+- Answer comparison using JSON array matching
+- Section-based scoring calculation
+- Automatic task assignment based on error thresholds
+- Persistent storage of results with timestamps
+
+### Analytics Implementation (client/src/pages/analytics.tsx)
+- Aggregated performance queries
+- Recharts integration for trend visualization
+- Multi-level filtering (student, grade)
+- Real-time data updates via React Query
+
+### Airtable Sync (server/airtable-sync.ts)
+- Data export to Airtable tables (Students, Tests, Test Results)
+- API integration using official Airtable SDK
+- Error handling and status reporting
+- Configuration-based connection management
