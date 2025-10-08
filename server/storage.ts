@@ -211,10 +211,5 @@ export class DatabaseStorage implements IStorage {
   }
 }
 
-import { AirtableStorage } from './airtable-storage';
-
-// Use Airtable as main database
-export const storage = new AirtableStorage(
-  process.env.AIRTABLE_API_KEY!,
-  process.env.AIRTABLE_BASE_ID!
-);
+// Use PostgreSQL as main database
+export const storage = new DatabaseStorage();
