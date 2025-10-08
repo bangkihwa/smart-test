@@ -44,6 +44,58 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post("/api/students/login", async (req, res) => {
+    try {
+      // Validate input with Zod schema
+      const loginSchema = z.object({
+        studentId: z.string().trim().min(1, "Student ID is required"),
+        name: z.string().trim().min(1, "Name is required"),
+        grade: z.enum([
+          "중등1학년",
+          "중등2학년",
+          "중등3학년",
+          "고등1학년",
+          "고등2학년",
+          "고등3학년"
+        ], { required_error: "Valid grade is required" }),
+      });
+      
+      const validated = loginSchema.parse(req.body);
+      
+      // Check if student exists
+      let student = await storage.getStudentByStudentId(validated.studentId);
+      
+      if (!student) {
+        // Create new student with validated data
+        student = await storage.createStudent({
+          studentId: validated.studentId,
+          name: validated.name,
+          grade: validated.grade,
+        });
+      } else {
+        // Check for mismatched info on existing student
+        if (student.name !== validated.name || student.grade !== validated.grade) {
+          return res.status(409).json({ 
+            message: "입력한 정보가 기존 정보와 일치하지 않습니다.",
+            storedName: student.name,
+            storedGrade: student.grade,
+          });
+        }
+      }
+      
+      res.json(student);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ 
+          message: "Invalid input data", 
+          errors: error.errors.map(e => e.message).join(", ")
+        });
+      }
+      console.error("Error logging in student:", error);
+      res.status(500).json({ message: "Failed to login" });
+    }
+  });
+
   app.post("/api/students", async (req, res) => {
     try {
       const studentData = insertStudentSchema.parse(req.body);
@@ -192,10 +244,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { studentId, testId, answers } = req.body;
       
-      // Validate student exists
+      // Validate student exists (should be created via login)
       const student = await storage.getStudentByStudentId(studentId);
       if (!student) {
-        return res.status(404).json({ message: "Student not found" });
+        return res.status(404).json({ message: "Student not found. Please login first." });
       }
 
       // Validate test exists

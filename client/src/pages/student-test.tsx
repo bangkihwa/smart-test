@@ -18,19 +18,25 @@ export default function StudentTest() {
   const { toast } = useToast();
   const [viewState, setViewState] = useState<ViewState>('login');
   const [studentId, setStudentId] = useState('');
+  const [studentName, setStudentName] = useState('');
+  const [studentGrade, setStudentGrade] = useState('');
   const [selectedTest, setSelectedTest] = useState<Test | null>(null);
   const [student, setStudent] = useState<Student | null>(null);
 
   // Fetch available tests
-  const { data: tests, isLoading: testsLoading } = useQuery({
+  const { data: tests, isLoading: testsLoading } = useQuery<Test[]>({
     queryKey: ['/api/tests'],
     enabled: viewState === 'test-selection',
   });
 
   // Student login mutation
   const loginMutation = useMutation({
-    mutationFn: async (studentId: string) => {
-      const response = await apiRequest('GET', `/api/students/by-student-id/${studentId}`);
+    mutationFn: async ({ studentId, name, grade }: { studentId: string, name: string, grade: string }) => {
+      const response = await apiRequest('POST', '/api/students/login', {
+        studentId,
+        name,
+        grade,
+      });
       return await response.json();
     },
     onSuccess: (student: Student) => {
@@ -41,18 +47,38 @@ export default function StudentTest() {
         description: `${student.name}님, 환영합니다!`,
       });
     },
-    onError: () => {
+    onError: async (error: any) => {
+      // Try to extract error message from response
+      let errorMessage = "다시 시도해주세요.";
+      if (error.response) {
+        try {
+          const errorData = await error.response.json();
+          errorMessage = errorData.message || errorMessage;
+          
+          // If mismatch error, show stored info
+          if (errorData.storedName && errorData.storedGrade) {
+            errorMessage = `${errorData.message}\n등록된 정보: ${errorData.storedName} (${errorData.storedGrade})`;
+          }
+        } catch {
+          // If can't parse, use default message
+        }
+      }
+      
       toast({
         variant: "destructive",
         title: "로그인 실패",
-        description: "학생 ID를 확인해주세요.",
+        description: errorMessage,
       });
     },
   });
 
   // Test submission mutation
   const submitTestMutation = useMutation({
-    mutationFn: async ({ studentId, testId, answers }: { studentId: string, testId: string, answers: number[] }) => {
+    mutationFn: async ({ studentId, testId, answers }: { 
+      studentId: string, 
+      testId: string, 
+      answers: number[] 
+    }) => {
       const response = await apiRequest('POST', '/api/test-results/submit', {
         studentId,
         testId,
@@ -87,7 +113,29 @@ export default function StudentTest() {
       });
       return;
     }
-    loginMutation.mutate(studentId);
+    if (!studentName.trim()) {
+      toast({
+        variant: "destructive",
+        title: "입력 오류",
+        description: "이름을 입력해주세요.",
+      });
+      return;
+    }
+    if (!studentGrade) {
+      toast({
+        variant: "destructive",
+        title: "입력 오류",
+        description: "학년을 선택해주세요.",
+      });
+      return;
+    }
+    
+    // Login via API (will create student if doesn't exist)
+    loginMutation.mutate({
+      studentId: studentId.trim(),
+      name: studentName.trim(),
+      grade: studentGrade,
+    });
   };
 
   const handleTestSelect = (test: Test) => {
@@ -175,7 +223,7 @@ export default function StudentTest() {
                 <CardTitle className="text-2xl font-bold text-foreground mb-2">학생 테스트</CardTitle>
                 <p className="text-muted-foreground">학생 정보를 입력하세요</p>
               </CardHeader>
-              <CardContent className="space-y-6">
+              <CardContent className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-foreground mb-2">학생 ID</label>
                   <Input
@@ -183,18 +231,44 @@ export default function StudentTest() {
                     placeholder="학생 ID 입력"
                     value={studentId}
                     onChange={(e) => setStudentId(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
                     data-testid="student-id-input"
                   />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-2">이름</label>
+                  <Input
+                    type="text"
+                    placeholder="이름 입력"
+                    value={studentName}
+                    onChange={(e) => setStudentName(e.target.value)}
+                    data-testid="student-name-input"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-2">학년</label>
+                  <Select value={studentGrade} onValueChange={setStudentGrade}>
+                    <SelectTrigger data-testid="student-grade-select">
+                      <SelectValue placeholder="학년 선택" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="중등1학년">중등1학년</SelectItem>
+                      <SelectItem value="중등2학년">중등2학년</SelectItem>
+                      <SelectItem value="중등3학년">중등3학년</SelectItem>
+                      <SelectItem value="고등1학년">고등1학년</SelectItem>
+                      <SelectItem value="고등2학년">고등2학년</SelectItem>
+                      <SelectItem value="고등3학년">고등3학년</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 <Button
                   onClick={handleLogin}
                   className="w-full bg-primary text-primary-foreground font-medium py-3"
-                  disabled={loginMutation.isPending}
                   data-testid="login-button"
                 >
-                  {loginMutation.isPending ? "로그인 중..." : "다음"}
+                  다음
                 </Button>
               </CardContent>
             </Card>
