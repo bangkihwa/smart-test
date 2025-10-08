@@ -17,7 +17,17 @@ Preferred communication style: Simple, everyday language.
   - Automatic student creation if doesn't exist
   - Mismatch detection for existing students
   - Error messages display stored student info on mismatch
-  - Route structure: / (student login), /admin (admin dashboard)
+  - Route structure: / (student login → dashboard), /admin (admin dashboard)
+
+- **Student Personal Dashboard** (client/src/pages/student-dashboard.tsx)
+  - Cumulative statistics display (총 테스트, 평균 점수, 최근 점수)
+  - Score trend visualization using Recharts LineChart
+  - Emphasized assigned tasks section with border-2 border-primary styling
+  - Color-coded task badges (heavy=destructive, medium=default, light=secondary)
+  - Test results history with clickable cards
+  - Empty state UI for new students
+  - "새 테스트" button to start new test
+  - Navigation flow: Dashboard → Test Selection → OMR Input
 
 - **Performance Analytics Dashboard** (client/src/pages/analytics.tsx)
   - Student and grade-level filtering
@@ -91,6 +101,10 @@ Preferred communication style: Simple, everyday language.
 - Search and filtering capabilities for students and test results
 - Validation using Zod schemas derived from Drizzle schema definitions
 - Student login endpoint (POST /api/students/login) with validation and auto-creation
+- Test result endpoints:
+  - GET /api/test-results/student/:studentId - Fetch student's test results for dashboard
+  - POST /api/test-results - Create test result directly (development/testing)
+  - POST /api/test-results/submit - Submit test with automatic grading
 
 ### External Dependencies
 
@@ -137,6 +151,12 @@ Preferred communication style: Simple, everyday language.
   - Automatic account creation for new students
   - Data validation ensures correct information entry
   - Mismatch detection prevents duplicate accounts with wrong info
+- **Personal Dashboard**:
+  - Cumulative test statistics (total tests, average score, recent score)
+  - Interactive score trend chart showing performance over time
+  - Emphasized assigned tasks with visual hierarchy (border, color-coded badges)
+  - Test results history with clickable detail cards
+  - Quick access to start new tests
 - **OMR Test Interface**:
   - Mobile-optimized OMR interface for test taking (30 questions in 3 sections)
   - Real-time answer selection and modification
