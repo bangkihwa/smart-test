@@ -240,6 +240,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post("/api/test-results", async (req, res) => {
+    try {
+      const resultData = insertTestResultSchema.parse(req.body);
+      const result = await storage.createTestResult(resultData);
+      res.status(201).json(result);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid test result data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to create test result" });
+    }
+  });
+
   app.post("/api/test-results/submit", async (req, res) => {
     try {
       const { studentId, testId, answers } = req.body;

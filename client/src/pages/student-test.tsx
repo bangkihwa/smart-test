@@ -8,10 +8,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import Navigation from "@/components/navigation";
 import OMRInput from "@/components/omr-input";
+import StudentDashboard from "./student-dashboard";
 import type { Test, Student } from "@/lib/types";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 
-type ViewState = 'login' | 'test-selection' | 'omr-input' | 'loading';
+type ViewState = 'login' | 'dashboard' | 'test-selection' | 'omr-input' | 'loading';
 
 export default function StudentTest() {
   const [, setLocation] = useLocation();
@@ -41,7 +42,7 @@ export default function StudentTest() {
     },
     onSuccess: (student: Student) => {
       setStudent(student);
-      setViewState('test-selection');
+      setViewState('dashboard');
       toast({
         title: "로그인 성공",
         description: `${student.name}님, 환영합니다!`,
@@ -165,6 +166,15 @@ export default function StudentTest() {
     setViewState('test-selection');
   };
 
+  const handleStartTest = () => {
+    setViewState('test-selection');
+  };
+
+  const handleBackToDashboard = () => {
+    setSelectedTest(null);
+    setViewState('dashboard');
+  };
+
   if (viewState === 'loading') {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -173,6 +183,18 @@ export default function StudentTest() {
           <p className="text-foreground font-medium">채점 중...</p>
         </div>
       </div>
+    );
+  }
+
+  if (viewState === 'dashboard' && student) {
+    return (
+      <>
+        <StudentDashboard
+          student={student}
+          onStartTest={handleStartTest}
+        />
+        <Navigation />
+      </>
     );
   }
 
@@ -283,6 +305,19 @@ export default function StudentTest() {
 
         {viewState === 'test-selection' && (
           <div>
+            <div className="mb-4">
+              <Button
+                onClick={handleBackToDashboard}
+                variant="ghost"
+                className="mb-2"
+                data-testid="back-to-dashboard"
+              >
+                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
+                </svg>
+                대시보드로 돌아가기
+              </Button>
+            </div>
             <div className="mb-6">
               <h2 className="text-2xl font-bold text-foreground mb-2">과제 테스트 선택</h2>
               <p className="text-muted-foreground">풀이한 단원을 선택하고 답을 입력하세요</p>
