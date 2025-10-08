@@ -97,7 +97,7 @@ export default function Analytics() {
             <h1 className="text-3xl font-bold text-gray-900">성적 분석</h1>
             <p className="text-gray-600 mt-1">학생 성과 및 트렌드 분석</p>
           </div>
-          <Link href="/" data-testid="back-to-admin">
+          <Link href="/admin" data-testid="back-to-admin">
             <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
               관리자로 돌아가기
             </button>

@@ -98,7 +98,7 @@ export default function Reports() {
             <h1 className="text-3xl font-bold text-gray-900">통계 보고서</h1>
             <p className="text-gray-600 mt-1">시험 단위, 학생 그룹, 기간별 상세 보고서</p>
           </div>
-          <Link href="/" data-testid="back-to-admin-from-reports">
+          <Link href="/admin" data-testid="back-to-admin-from-reports">
             <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
               관리자로 돌아가기
             </button>
