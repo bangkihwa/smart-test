@@ -165,6 +165,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/test-results/all", async (req, res) => {
+    try {
+      const results = await storage.getAllTestResultsWithRelations();
+      res.json(results);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch test results" });
+    }
+  });
+
   app.get("/api/test-results/:id", async (req, res) => {
     try {
       const result = await storage.getTestResult(req.params.id);

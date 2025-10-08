@@ -9,6 +9,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
+import { BarChart3 } from "lucide-react";
+import { Link } from "wouter";
 import Navigation from "@/components/navigation";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import type { Student, Test, TestResult, GradeLevel } from "@/lib/types";

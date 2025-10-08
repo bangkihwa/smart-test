@@ -26,6 +26,7 @@ export interface IStorage {
   getTestResultsByStudent(studentId: string): Promise<TestResult[]>;
   getTestResultsByTest(testId: string): Promise<TestResult[]>;
   getAllTestResults(): Promise<TestResult[]>;
+  getAllTestResultsWithRelations(): Promise<any[]>;
   getFilteredTestResults(filters: {
     studentId?: string;
     testId?: string;
@@ -154,6 +155,28 @@ export class DatabaseStorage implements IStorage {
 
   async getAllTestResults(): Promise<TestResult[]> {
     return await db.select().from(testResults).orderBy(desc(testResults.completedAt));
+  }
+
+  async getAllTestResultsWithRelations(): Promise<any[]> {
+    const results = await db
+      .select({
+        id: testResults.id,
+        studentId: testResults.studentId,
+        testId: testResults.testId,
+        answers: testResults.answers,
+        score: testResults.score,
+        sectionScores: testResults.sectionScores,
+        assignedTasks: testResults.assignedTasks,
+        completedAt: testResults.completedAt,
+        student: students,
+        test: tests,
+      })
+      .from(testResults)
+      .leftJoin(students, eq(testResults.studentId, students.id))
+      .leftJoin(tests, eq(testResults.testId, tests.id))
+      .orderBy(desc(testResults.completedAt));
+    
+    return results;
   }
 
   async getFilteredTestResults(filters: {
