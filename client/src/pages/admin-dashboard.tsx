@@ -497,10 +497,13 @@ export default function AdminDashboard() {
               <div>
                 <label className="block text-sm font-medium mb-2">과목</label>
                 <Select value={testForm.subject} onValueChange={(value) => setTestForm({ ...testForm, subject: value })}>
-                  <SelectTrigger>
+                  <SelectTrigger data-testid="test-subject-select">
                     <SelectValue placeholder="과목 선택" />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="통합과학 중1">통합과학 중1</SelectItem>
+                    <SelectItem value="통합과학 중2">통합과학 중2</SelectItem>
+                    <SelectItem value="통합과학 중3">통합과학 중3</SelectItem>
                     <SelectItem value="화학">화학</SelectItem>
                     <SelectItem value="생물">생물</SelectItem>
                     <SelectItem value="물리">물리</SelectItem>
