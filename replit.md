@@ -28,6 +28,15 @@ Preferred communication style: Simple, everyday language.
   - Empty state UI for new students
   - "새 테스트" button to start new test
   - Navigation flow: Dashboard → Test Selection → OMR Input
+  - **Period-based Report Generation**:
+    - Date range selection using Calendar component
+    - Comprehensive learning report with visual analytics
+    - Score trend chart for selected period
+    - Section-wise accuracy analysis with bar charts
+    - Automatic detection of weakest sections
+    - Display of core content for weak areas
+    - Categorized task assignments by section
+    - Mobile-optimized modal presentation
 
 - **Performance Analytics Dashboard** (client/src/pages/analytics.tsx)
   - Student and grade-level filtering
