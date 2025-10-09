@@ -75,6 +75,16 @@ Preferred communication style: Simple, everyday language.
   - Subject displayed as badge on student test selection cards
   - Enhanced test creation mutation with error handling and toast feedback
 
+- **Academy Logo Integration** (all pages)
+  - Added 목동에이원과학학원 logo (AONE SCIENCE) across all pages for brand visibility
+  - **Admin Navigation Sidebar**: Logo in top section with academy name
+  - **Student Login Page**: Logo displayed in login card and mobile header
+  - **Student Dashboard**: Logo in header alongside student info
+  - **Reports Page**: Logo next to page title
+  - **Analytics Page**: Logo next to page title
+  - Logo file: `attached_assets/403e7f94-9ba8-4bcc-b0ee-9d85daaea925_1760051026579.jpg`
+  - Implemented using @assets import alias for clean asset management
+
 ### Pending Future Enhancements
 - Parent notification system for test result alerts
 - Support for different question types (true/false, short answer, essay)
