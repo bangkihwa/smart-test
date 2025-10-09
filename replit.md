@@ -44,11 +44,23 @@ Preferred communication style: Simple, everyday language.
   - Score trend visualization using Recharts line charts
   - Time-based performance tracking across multiple tests
 
-- **Statistical Reports System** (client/src/pages/reports.tsx)
+- **Statistical Reports System** (client/src/pages/reports.tsx, server/airtable-storage.ts)
   - Comprehensive filtering by test, grade level, and date range
   - Detailed summary statistics and performance metrics
-  - CSV export functionality for data analysis
-  - Print-friendly report views for physical documentation
+  - **Enhanced table display**:
+    - 추가과제 column with color-coded badges (상=red, 중=blue, 하=gray)
+    - 섹션별 점수 column showing performance per section
+    - Student information with test results
+  - **CSV export functionality**:
+    - Includes all data: 학생명, 학번, 학년, 시험명, 과목, 점수, 섹션별 점수, 추가과제, 완료일
+    - UTF-8 BOM for proper Korean display in Excel
+  - **Print-friendly layout**:
+    - Landscape A4 orientation
+    - Optimized font size and padding
+  - **Backend improvements**:
+    - Fixed `/api/test-results/all` endpoint to properly join student and test data
+    - Efficient data loading with Promise.all
+    - Fallback objects for missing data
 
 - **Airtable Integration** (server/airtable-sync.ts, client/src/pages/airtable-settings.tsx)
   - Bidirectional sync with Airtable for external database backup
