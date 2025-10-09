@@ -7,6 +7,7 @@ import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend, Re
 import { TrendingUp, TrendingDown, User, Award, AlertCircle } from "lucide-react";
 import { Link } from "wouter";
 import type { Student, TestResult, Test } from "@shared/schema";
+import logoImg from "@assets/403e7f94-9ba8-4bcc-b0ee-9d85daaea925_1760051026579.jpg";
 
 export default function Analytics() {
   const [selectedStudent, setSelectedStudent] = useState<string>("");
@@ -93,9 +94,17 @@ export default function Analytics() {
     <div className="min-h-screen bg-gray-50 p-4">
       <div className="max-w-7xl mx-auto">
         <div className="flex items-center justify-between mb-6">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">성적 분석</h1>
-            <p className="text-gray-600 mt-1">학생 성과 및 트렌드 분석</p>
+          <div className="flex items-center gap-4">
+            <img 
+              src={logoImg} 
+              alt="목동에이원과학학원" 
+              className="h-12 w-auto"
+              data-testid="logo-analytics"
+            />
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">성적 분석</h1>
+              <p className="text-gray-600 mt-1">학생 성과 및 트렌드 분석</p>
+            </div>
           </div>
           <Link href="/admin" data-testid="back-to-admin">
             <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
