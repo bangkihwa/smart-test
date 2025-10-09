@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Download, FileText, Calendar } from "lucide-react";
 import { Link } from "wouter";
 import type { Student, Test, TestResult } from "@shared/schema";
+import logoImg from "@assets/403e7f94-9ba8-4bcc-b0ee-9d85daaea925_1760051026579.jpg";
 
 export default function Reports() {
   const [selectedTest, setSelectedTest] = useState<string>("all");
@@ -119,9 +120,17 @@ export default function Reports() {
     <div className="min-h-screen bg-gray-50 p-4">
       <div className="max-w-7xl mx-auto">
         <div className="flex items-center justify-between mb-6">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">통계 보고서</h1>
-            <p className="text-gray-600 mt-1">시험 단위, 학생 그룹, 기간별 상세 보고서</p>
+          <div className="flex items-center gap-4">
+            <img 
+              src={logoImg} 
+              alt="목동에이원과학학원" 
+              className="h-12 w-auto"
+              data-testid="logo-reports"
+            />
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">통계 보고서</h1>
+              <p className="text-gray-600 mt-1">시험 단위, 학생 그룹, 기간별 상세 보고서</p>
+            </div>
           </div>
           <Link href="/admin" data-testid="back-to-admin-from-reports">
             <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
