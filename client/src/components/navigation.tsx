@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
+import logoImg from "@assets/403e7f94-9ba8-4bcc-b0ee-9d85daaea925_1760051026579.jpg";
 
 interface NavigationProps {
   isAdmin?: boolean;
@@ -12,14 +13,15 @@ export default function Navigation({ isAdmin = false }: NavigationProps) {
     return (
       <aside className="hidden md:flex md:flex-col w-64 bg-card border-r border-border">
         <div className="p-6 border-b border-border">
-          <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
-              <svg className="w-6 h-6 text-primary-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-              </svg>
-            </div>
-            <div>
-              <h1 className="text-lg font-bold text-foreground">목동에이원</h1>
+          <div className="flex flex-col items-center space-y-3">
+            <img 
+              src={logoImg} 
+              alt="목동에이원과학학원" 
+              className="w-32 h-auto"
+              data-testid="logo-admin"
+            />
+            <div className="text-center">
+              <h1 className="text-lg font-bold text-foreground">목동에이원과학학원</h1>
               <p className="text-xs text-muted-foreground">관리자 모드</p>
             </div>
           </div>
