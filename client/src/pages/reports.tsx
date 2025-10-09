@@ -36,17 +36,27 @@ export default function Reports() {
     return true;
   }) || [];
 
-  const reportData = filteredResults.map(result => ({
-    studentName: result.student.name,
-    studentId: result.student.studentId,
-    grade: result.student.grade,
-    testName: result.test.name,
-    subject: result.test.subject,
-    score: result.score,
-    completedAt: new Date(result.completedAt).toLocaleDateString('ko-KR'),
-    sectionScores: result.sectionScores,
-    assignedTasks: result.assignedTasks,
-  }));
+  const reportData = filteredResults.map(result => {
+    const tasksWithNames = result.assignedTasks.map((task: any) => {
+      const section = result.test.sections?.find((s: any) => s.sectionNumber === task.sectionNumber);
+      return {
+        ...task,
+        sectionName: section?.name || `섹션 ${task.sectionNumber}`,
+      };
+    });
+
+    return {
+      studentName: result.student.name,
+      studentId: result.student.studentId,
+      grade: result.student.grade,
+      testName: result.test.name,
+      subject: result.test.subject,
+      score: result.score,
+      completedAt: new Date(result.completedAt).toLocaleDateString('ko-KR'),
+      sectionScores: result.sectionScores,
+      assignedTasks: tasksWithNames,
+    };
+  });
 
   const statistics = {
     totalTests: filteredResults.length,
@@ -63,16 +73,31 @@ export default function Reports() {
   };
 
   const exportToCSV = () => {
-    const headers = ['학생명', '학번', '학년', '시험명', '과목', '점수', '완료일'];
-    const rows = reportData.map(row => [
-      row.studentName,
-      row.studentId,
-      row.grade,
-      row.testName,
-      row.subject,
-      row.score.toString(),
-      row.completedAt,
-    ]);
+    const headers = ['학생명', '학번', '학년', '시험명', '과목', '점수', '섹션별 점수', '추가과제', '완료일'];
+    const rows = reportData.map(row => {
+      const sectionScoresText = row.sectionScores
+        .map(s => `S${s.sectionNumber}:${s.correct}/${s.total}`)
+        .join(' | ');
+      
+      const tasksText = row.assignedTasks
+        .map((t: any) => {
+          const level = t.taskType === 'heavy' ? '상' : t.taskType === 'medium' ? '중' : '하';
+          return `${t.sectionName}:${level}`;
+        })
+        .join(' | ');
+      
+      return [
+        row.studentName,
+        row.studentId,
+        row.grade,
+        row.testName,
+        row.subject,
+        row.score.toString(),
+        sectionScoresText,
+        tasksText,
+        row.completedAt,
+      ];
+    });
 
     const csvContent = [
       headers.join(','),
@@ -249,6 +274,7 @@ export default function Reports() {
                       <TableHead>과목</TableHead>
                       <TableHead>점수</TableHead>
                       <TableHead>섹션별 점수</TableHead>
+                      <TableHead>추가과제</TableHead>
                       <TableHead>완료일</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -266,11 +292,28 @@ export default function Reports() {
                           </Badge>
                         </TableCell>
                         <TableCell>
-                          <div className="flex gap-1">
+                          <div className="flex gap-1 flex-wrap">
                             {row.sectionScores.map((section, idx) => (
                               <span key={idx} className="text-xs bg-gray-100 px-2 py-1 rounded">
                                 S{section.sectionNumber}: {section.correct}/{section.total}
                               </span>
+                            ))}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex gap-1 flex-wrap">
+                            {row.assignedTasks.map((task: any, idx) => (
+                              <Badge 
+                                key={idx} 
+                                variant={
+                                  task.taskType === 'heavy' ? 'destructive' : 
+                                  task.taskType === 'medium' ? 'default' : 
+                                  'secondary'
+                                }
+                                className="text-xs"
+                              >
+                                {task.sectionName}: {task.taskType === 'heavy' ? '상' : task.taskType === 'medium' ? '중' : '하'}
+                              </Badge>
                             ))}
                           </div>
                         </TableCell>
@@ -305,6 +348,16 @@ export default function Reports() {
           }
           button {
             display: none !important;
+          }
+          @page {
+            size: A4 landscape;
+            margin: 1cm;
+          }
+          table {
+            font-size: 10pt;
+          }
+          th, td {
+            padding: 4px !important;
           }
         }
       `}</style>

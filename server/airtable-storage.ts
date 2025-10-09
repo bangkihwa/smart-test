@@ -480,35 +480,40 @@ export class AirtableStorage implements IStorage {
   }
 
   async getAllTestResultsWithRelations(): Promise<any[]> {
-    const results: any[] = [];
+    const rawResults: any[] = [];
 
     await this.base(this.resultsTable)
       .select({
         sort: [{ field: 'Completed At', direction: 'desc' }]
       })
-      .eachPage(async (records: any[], fetchNextPage: () => void) => {
-        for (const record of records) {
-          const studentId = record.fields['Student ID Internal'] as string;
-          const testId = record.fields['Test ID Internal'] as string;
-
-          const student = await this.getStudent(studentId);
-          const test = await this.getTest(testId);
-
-          results.push({
+      .eachPage((records: any[], fetchNextPage: () => void) => {
+        records.forEach(record => {
+          rawResults.push({
             id: record.fields['ID'] as string,
-            studentId,
-            testId,
+            studentId: record.fields['Student ID Internal'] as string,
+            testId: record.fields['Test ID Internal'] as string,
             answers: JSON.parse(record.fields['Answers'] as string),
             score: record.fields['Score'] as number,
             sectionScores: JSON.parse(record.fields['Section Scores'] as string),
             assignedTasks: JSON.parse(record.fields['Assigned Tasks'] as string),
             completedAt: new Date(record.fields['Completed At'] as string),
-            student,
-            test,
           });
-        }
+        });
         fetchNextPage();
       });
+
+    const results = await Promise.all(
+      rawResults.map(async (result) => {
+        const student = await this.getStudent(result.studentId);
+        const test = await this.getTest(result.testId);
+        
+        return {
+          ...result,
+          student: student || { id: result.studentId, studentId: '', name: 'Unknown', grade: '' },
+          test: test || { id: result.testId, testId: '', name: 'Unknown', subject: '', sections: [] },
+        };
+      })
+    );
 
     return results;
   }
