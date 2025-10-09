@@ -12,6 +12,7 @@ import { Calendar as CalendarIcon, FileText } from "lucide-react";
 import type { Student, TestResult, Test } from "@/lib/types";
 import { format } from "date-fns";
 import { ko } from "date-fns/locale";
+import logoImg from "@assets/403e7f94-9ba8-4bcc-b0ee-9d85daaea925_1760051026579.jpg";
 
 interface StudentDashboardProps {
   student: Student;
@@ -158,13 +159,14 @@ export default function StudentDashboard({ student, onStartTest }: StudentDashbo
         <div className="px-4 py-3 space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
-                <svg className="w-6 h-6 text-primary-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                </svg>
-              </div>
+              <img 
+                src={logoImg} 
+                alt="목동에이원과학학원" 
+                className="h-10 w-auto"
+                data-testid="logo-dashboard"
+              />
               <div>
-                <h1 className="text-lg font-bold text-foreground">{student.name}</h1>
+                <h1 className="text-base font-bold text-foreground">{student.name}</h1>
                 <p className="text-xs text-muted-foreground">{student.grade}</p>
               </div>
             </div>
