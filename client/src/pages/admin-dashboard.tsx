@@ -146,6 +146,14 @@ export default function AdminDashboard() {
         ]
       });
     },
+    onError: (error: any) => {
+      console.error('Test creation error:', error);
+      toast({ 
+        title: "테스트 생성 실패", 
+        description: error.message || "다시 시도해주세요.",
+        variant: "destructive" 
+      });
+    },
   });
 
   const handleStudentSubmit = (e: React.FormEvent) => {
