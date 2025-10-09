@@ -57,6 +57,12 @@ Preferred communication style: Simple, everyday language.
   - Data import from Airtable for viewing external records
   - Real-time sync status and result display
 
+- **Test Subject Options** (client/src/pages/admin-dashboard.tsx)
+  - Added integrated science subjects: 통합과학 중1, 통합과학 중2, 통합과학 중3
+  - Existing subjects: 화학, 생물, 물리, 지구과학
+  - Subject displayed as badge on student test selection cards
+  - Enhanced test creation mutation with error handling and toast feedback
+
 ### Pending Future Enhancements
 - Parent notification system for test result alerts
 - Support for different question types (true/false, short answer, essay)
