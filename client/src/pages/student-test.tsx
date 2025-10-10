@@ -338,7 +338,7 @@ export default function StudentTest() {
               </div>
             ) : (
               <div className="space-y-3">
-                {tests?.map((test: Test) => (
+                {tests?.filter(test => !test.grade || test.grade === student?.grade).map((test: Test) => (
                   <Card 
                     key={test.id} 
                     className="cursor-pointer hover:shadow-lg transition-shadow"
