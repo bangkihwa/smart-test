@@ -189,7 +189,25 @@ export default function AdminDashboard() {
   const handleTestSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Validate subject and grade
+    // Validate basic fields
+    if (!testForm.testId || testForm.testId.trim() === '') {
+      toast({
+        variant: "destructive",
+        title: "입력 오류",
+        description: "테스트 ID를 입력해주세요.",
+      });
+      return;
+    }
+    
+    if (!testForm.name || testForm.name.trim() === '') {
+      toast({
+        variant: "destructive",
+        title: "입력 오류",
+        description: "단원명을 입력해주세요.",
+      });
+      return;
+    }
+    
     if (!testForm.subject) {
       toast({
         variant: "destructive",
@@ -206,6 +224,56 @@ export default function AdminDashboard() {
         description: "학년을 선택해주세요.",
       });
       return;
+    }
+    
+    // Validate sections
+    for (let i = 0; i < testForm.sections.length; i++) {
+      const section = testForm.sections[i];
+      
+      if (!section.name || section.name.trim() === '') {
+        toast({
+          variant: "destructive",
+          title: "입력 오류",
+          description: `${i + 1}번 섹션의 섹션명을 입력해주세요.`,
+        });
+        return;
+      }
+      
+      if (!section.coreContent || section.coreContent.trim() === '') {
+        toast({
+          variant: "destructive",
+          title: "입력 오류",
+          description: `${i + 1}번 섹션의 핵심 내용을 입력해주세요.`,
+        });
+        return;
+      }
+      
+      if (!section.assignments.light || section.assignments.light.trim() === '') {
+        toast({
+          variant: "destructive",
+          title: "입력 오류",
+          description: `${i + 1}번 섹션의 '하' 과제를 입력해주세요.`,
+        });
+        return;
+      }
+      
+      if (!section.assignments.medium || section.assignments.medium.trim() === '') {
+        toast({
+          variant: "destructive",
+          title: "입력 오류",
+          description: `${i + 1}번 섹션의 '중' 과제를 입력해주세요.`,
+        });
+        return;
+      }
+      
+      if (!section.assignments.heavy || section.assignments.heavy.trim() === '') {
+        toast({
+          variant: "destructive",
+          title: "입력 오류",
+          description: `${i + 1}번 섹션의 '상' 과제를 입력해주세요.`,
+        });
+        return;
+      }
     }
     
     createTestMutation.mutate(testForm);
@@ -520,7 +588,6 @@ export default function AdminDashboard() {
                   value={testForm.testId}
                   onChange={(e) => setTestForm({ ...testForm, testId: e.target.value })}
                   placeholder="예: TEST001"
-                  required
                   data-testid="test-id-input"
                 />
               </div>
@@ -564,7 +631,6 @@ export default function AdminDashboard() {
                 value={testForm.name}
                 onChange={(e) => setTestForm({ ...testForm, name: e.target.value })}
                 placeholder="예: 알칼리금속과 할로젠"
-                required
                 data-testid="test-name-input"
               />
             </div>
@@ -584,7 +650,6 @@ export default function AdminDashboard() {
                   value={section.name}
                   onChange={(e) => updateTestSection(sectionIndex, 'name', e.target.value)}
                   placeholder={`예: ${sectionIndex === 0 ? '알칼리금속' : sectionIndex === 1 ? '할로젠원소' : '주기적성질'}`}
-                  required
                 />
               </div>
               
@@ -595,7 +660,6 @@ export default function AdminDashboard() {
                   onChange={(e) => updateTestSection(sectionIndex, 'coreContent', e.target.value)}
                   placeholder="이 섹션의 핵심 개념을 입력하세요..."
                   rows={3}
-                  required
                 />
               </div>
 
@@ -640,7 +704,6 @@ export default function AdminDashboard() {
                       onChange={(e) => updateTestSection(sectionIndex, 'assignments.light', e.target.value)}
                       placeholder="오답 문제 복습"
                       className="text-sm"
-                      required
                     />
                   </div>
                   <div>
@@ -650,7 +713,6 @@ export default function AdminDashboard() {
                       onChange={(e) => updateTestSection(sectionIndex, 'assignments.medium', e.target.value)}
                       placeholder="핵심 개념 정리 + 유사 문제 풀이"
                       className="text-sm"
-                      required
                     />
                   </div>
                   <div>
@@ -660,7 +722,6 @@ export default function AdminDashboard() {
                       onChange={(e) => updateTestSection(sectionIndex, 'assignments.heavy', e.target.value)}
                       placeholder="전체 개념 재학습 + 심화 과제"
                       className="text-sm"
-                      required
                     />
                   </div>
                 </div>
