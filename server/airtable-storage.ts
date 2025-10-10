@@ -249,15 +249,36 @@ export class AirtableStorage implements IStorage {
     const id = nanoid();
     const createdAt = new Date();
 
-    await this.base(this.testsTable).create({
+    const fieldsWithGrade: any = {
       'ID': id,
       'Test ID': test.testId,
       'Name': test.name,
       'Subject': test.subject,
-      'Grade': test.grade || null,
+      'Grade': test.grade || '',
       'Sections': JSON.stringify(test.sections),
       'Created At': createdAt.toISOString(),
-    }, { typecast: true });
+    };
+
+    try {
+      // Try to create with Grade field
+      await this.base(this.testsTable).create(fieldsWithGrade, { typecast: true });
+    } catch (error: any) {
+      // If Grade field doesn't exist in Airtable, retry without it
+      if (error.statusCode === 422 && error.error === 'UNKNOWN_FIELD_NAME') {
+        console.warn('Grade field not found in Airtable Tests table, creating without it');
+        const fieldsWithoutGrade: any = {
+          'ID': id,
+          'Test ID': test.testId,
+          'Name': test.name,
+          'Subject': test.subject,
+          'Sections': JSON.stringify(test.sections),
+          'Created At': createdAt.toISOString(),
+        };
+        await this.base(this.testsTable).create(fieldsWithoutGrade, { typecast: true });
+      } else {
+        throw error;
+      }
+    }
 
     return {
       id,
@@ -288,10 +309,22 @@ export class AirtableStorage implements IStorage {
     if (test.testId) updateData['Test ID'] = test.testId;
     if (test.name) updateData['Name'] = test.name;
     if (test.subject) updateData['Subject'] = test.subject;
-    if (test.grade !== undefined) updateData['Grade'] = test.grade || null;
+    if (test.grade !== undefined) updateData['Grade'] = test.grade || '';
     if (test.sections) updateData['Sections'] = JSON.stringify(test.sections);
 
-    const updatedRecord = await this.base(this.testsTable).update(recordId, updateData, { typecast: true });
+    let updatedRecord;
+    try {
+      updatedRecord = await this.base(this.testsTable).update(recordId, updateData, { typecast: true });
+    } catch (error: any) {
+      // If Grade field doesn't exist, retry without it
+      if (error.statusCode === 422 && error.error === 'UNKNOWN_FIELD_NAME' && updateData['Grade'] !== undefined) {
+        console.warn('Grade field not found in Airtable Tests table, updating without it');
+        delete updateData['Grade'];
+        updatedRecord = await this.base(this.testsTable).update(recordId, updateData, { typecast: true });
+      } else {
+        throw error;
+      }
+    }
 
     return {
       id: updatedRecord.fields['ID'] as string,

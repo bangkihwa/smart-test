@@ -53,6 +53,7 @@ export class AirtableSync {
           'Test ID': test.testId,
           'Name': test.name,
           'Subject': test.subject,
+          'Grade': test.grade || '',
           'Sections': JSON.stringify(test.sections),
           'Created At': test.createdAt.toISOString(),
         }, { typecast: true });

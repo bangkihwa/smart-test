@@ -85,6 +85,20 @@ Preferred communication style: Simple, everyday language.
   - Logo file: `attached_assets/403e7f94-9ba8-4bcc-b0ee-9d85daaea925_1760051026579.jpg`
   - Implemented using @assets import alias for clean asset management
 
+- **Grade-Based Test Management** (shared/schema.ts, client/src/pages/admin-dashboard.tsx, client/src/pages/student-test.tsx, server/airtable-storage.ts)
+  - Added grade field to Tests schema (nullable for backward compatibility)
+  - Admin test creation requires grade selection before submission
+  - Grade-based filtering: students only see tests matching their grade level
+  - Tests without grade are visible to all students (legacy support)
+  - Airtable Tests table includes Grade field for full data synchronization
+  - Manual validation for Radix UI Select component (HTML required attribute not supported)
+
+- **Test Results Enhancement** (client/src/pages/test-results.tsx)
+  - Display incorrect answers with side-by-side comparison
+  - Shows student's answer vs correct answer for each wrong question
+  - Organized by section with question number reference
+  - Clear visual indication of errors for learning feedback
+
 ### Pending Future Enhancements
 - Parent notification system for test result alerts
 - Support for different question types (true/false, short answer, essay)
