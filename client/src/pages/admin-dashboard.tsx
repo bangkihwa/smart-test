@@ -39,6 +39,7 @@ export default function AdminDashboard() {
     testId: '',
     name: '',
     subject: '',
+    grade: '' as GradeLevel | '',
     sections: [
       {
         sectionNumber: 1,
@@ -121,6 +122,7 @@ export default function AdminDashboard() {
         testId: '',
         name: '',
         subject: '',
+        grade: '',
         sections: [
           {
             sectionNumber: 1,
@@ -491,7 +493,7 @@ export default function AdminDashboard() {
             <CardTitle>기본 정보</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <label className="block text-sm font-medium mb-2">테스트 ID</label>
                 <Input
@@ -516,6 +518,22 @@ export default function AdminDashboard() {
                     <SelectItem value="생물">생물</SelectItem>
                     <SelectItem value="물리">물리</SelectItem>
                     <SelectItem value="지구과학">지구과학</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-2">학년</label>
+                <Select value={testForm.grade} onValueChange={(value) => setTestForm({ ...testForm, grade: value as GradeLevel })}>
+                  <SelectTrigger data-testid="test-grade-select">
+                    <SelectValue placeholder="학년 선택" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="중등1학년">중등1학년</SelectItem>
+                    <SelectItem value="중등2학년">중등2학년</SelectItem>
+                    <SelectItem value="중등3학년">중등3학년</SelectItem>
+                    <SelectItem value="고등1학년">고등1학년</SelectItem>
+                    <SelectItem value="고등2학년">고등2학년</SelectItem>
+                    <SelectItem value="고등3학년">고등3학년</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
