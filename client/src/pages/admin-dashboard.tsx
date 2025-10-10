@@ -188,6 +188,26 @@ export default function AdminDashboard() {
 
   const handleTestSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validate subject and grade
+    if (!testForm.subject) {
+      toast({
+        variant: "destructive",
+        title: "입력 오류",
+        description: "과목을 선택해주세요.",
+      });
+      return;
+    }
+    
+    if (!testForm.grade) {
+      toast({
+        variant: "destructive",
+        title: "입력 오류",
+        description: "학년을 선택해주세요.",
+      });
+      return;
+    }
+    
     createTestMutation.mutate(testForm);
   };
 
@@ -505,7 +525,7 @@ export default function AdminDashboard() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-2">과목</label>
+                <label className="block text-sm font-medium mb-2">과목 <span className="text-destructive">*</span></label>
                 <Select value={testForm.subject} onValueChange={(value) => setTestForm({ ...testForm, subject: value })}>
                   <SelectTrigger data-testid="test-subject-select">
                     <SelectValue placeholder="과목 선택" />
@@ -522,7 +542,7 @@ export default function AdminDashboard() {
                 </Select>
               </div>
               <div>
-                <label className="block text-sm font-medium mb-2">학년</label>
+                <label className="block text-sm font-medium mb-2">학년 <span className="text-destructive">*</span></label>
                 <Select value={testForm.grade} onValueChange={(value) => setTestForm({ ...testForm, grade: value as GradeLevel })}>
                   <SelectTrigger data-testid="test-grade-select">
                     <SelectValue placeholder="학년 선택" />

@@ -208,6 +208,7 @@ export class AirtableStorage implements IStorage {
         testId: record.fields['Test ID'] as string,
         name: record.fields['Name'] as string,
         subject: record.fields['Subject'] as string,
+        grade: (record.fields['Grade'] as string) || null,
         sections: JSON.parse(record.fields['Sections'] as string) as any,
         createdAt: new Date(record.fields['Created At'] as string),
       };
@@ -234,6 +235,7 @@ export class AirtableStorage implements IStorage {
         testId: record.fields['Test ID'] as string,
         name: record.fields['Name'] as string,
         subject: record.fields['Subject'] as string,
+        grade: (record.fields['Grade'] as string) || null,
         sections: JSON.parse(record.fields['Sections'] as string) as any,
         createdAt: new Date(record.fields['Created At'] as string),
       };
@@ -252,6 +254,7 @@ export class AirtableStorage implements IStorage {
       'Test ID': test.testId,
       'Name': test.name,
       'Subject': test.subject,
+      'Grade': test.grade || null,
       'Sections': JSON.stringify(test.sections),
       'Created At': createdAt.toISOString(),
     }, { typecast: true });
@@ -261,6 +264,7 @@ export class AirtableStorage implements IStorage {
       testId: test.testId,
       name: test.name,
       subject: test.subject,
+      grade: test.grade || null,
       sections: test.sections,
       createdAt,
     };
@@ -284,6 +288,7 @@ export class AirtableStorage implements IStorage {
     if (test.testId) updateData['Test ID'] = test.testId;
     if (test.name) updateData['Name'] = test.name;
     if (test.subject) updateData['Subject'] = test.subject;
+    if (test.grade !== undefined) updateData['Grade'] = test.grade || null;
     if (test.sections) updateData['Sections'] = JSON.stringify(test.sections);
 
     const updatedRecord = await this.base(this.testsTable).update(recordId, updateData, { typecast: true });
@@ -293,6 +298,7 @@ export class AirtableStorage implements IStorage {
       testId: updatedRecord.fields['Test ID'] as string,
       name: updatedRecord.fields['Name'] as string,
       subject: updatedRecord.fields['Subject'] as string,
+      grade: (updatedRecord.fields['Grade'] as string) || null,
       sections: JSON.parse(updatedRecord.fields['Sections'] as string),
       createdAt: new Date(updatedRecord.fields['Created At'] as string),
     };
@@ -325,6 +331,7 @@ export class AirtableStorage implements IStorage {
             testId: record.fields['Test ID'] as string,
             name: record.fields['Name'] as string,
             subject: record.fields['Subject'] as string,
+            grade: (record.fields['Grade'] as string) || null,
             sections: JSON.parse(record.fields['Sections'] as string) as any,
             createdAt: new Date(record.fields['Created At'] as string),
           });
@@ -510,7 +517,7 @@ export class AirtableStorage implements IStorage {
         return {
           ...result,
           student: student || { id: result.studentId, studentId: '', name: 'Unknown', grade: '' },
-          test: test || { id: result.testId, testId: '', name: 'Unknown', subject: '', sections: [] },
+          test: test || { id: result.testId, testId: '', name: 'Unknown', subject: '', grade: null, sections: [] },
         };
       })
     );
