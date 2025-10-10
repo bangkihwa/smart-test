@@ -85,13 +85,23 @@ Preferred communication style: Simple, everyday language.
   - Logo file: `attached_assets/403e7f94-9ba8-4bcc-b0ee-9d85daaea925_1760051026579.jpg`
   - Implemented using @assets import alias for clean asset management
 
-- **Grade-Based Test Management** (shared/schema.ts, client/src/pages/admin-dashboard.tsx, client/src/pages/student-test.tsx, server/airtable-storage.ts)
-  - Added grade field to Tests schema (nullable for backward compatibility)
-  - Admin test creation requires grade selection before submission
-  - Grade-based filtering: students only see tests matching their grade level
-  - Tests without grade are visible to all students (legacy support)
-  - Airtable Tests table includes Grade field for full data synchronization
-  - Manual validation for Radix UI Select component (HTML required attribute not supported)
+- **Grade-Based Test Management** (shared/schema.ts, client/src/pages/admin-dashboard.tsx, client/src/pages/student-test.tsx, server/airtable-storage.ts, server/airtable-sync.ts)
+  - **Schema & Database**:
+    - Added grade field to Tests schema (nullable for backward compatibility)
+    - Airtable Tests table includes Grade field for full data synchronization
+    - Fallback logic handles missing Grade field in Airtable gracefully
+  - **Admin Test Creation**:
+    - Grade selection required before submission
+    - **Form Validation Enhancement**:
+      - Removed all HTML `required` attributes to prevent Radix UI Select conflicts
+      - Implemented comprehensive manual validation with Zod-style checks
+      - Validates: testId, name, subject, grade, and all section fields (name, coreContent, assignments)
+      - Toast notifications provide specific error messages for each validation failure
+      - Prevents browser's "Please fill out this field" popup from blocking form submission
+  - **Student Test Filtering**:
+    - Students only see tests matching their grade level (`!test.grade || test.grade === student?.grade`)
+    - Tests without grade are visible to all students (legacy support)
+    - E2E verified: 중등1학년 student sees 중등1학년 tests, 고등1학년 student does not
 
 - **Test Results Enhancement** (client/src/pages/test-results.tsx)
   - Display incorrect answers with side-by-side comparison
@@ -257,3 +267,12 @@ Preferred communication style: Simple, everyday language.
 - API integration using official Airtable SDK
 - Error handling and status reporting
 - Configuration-based connection management
+
+### Form Validation (client/src/pages/admin-dashboard.tsx)
+- **Manual validation approach**: Replaced HTML `required` attributes with manual validation
+- **Radix UI compatibility**: HTML validation conflicts with Radix UI Select, preventing form submission
+- **Validation logic**:
+  - Checks testId, name, subject, grade before section validation
+  - Validates each section's name, coreContent, and all three assignment levels
+  - Returns early with toast notification on first validation failure
+- **User feedback**: Toast messages provide specific, actionable error descriptions
