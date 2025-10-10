@@ -17,9 +17,10 @@ import logoImg from "@assets/403e7f94-9ba8-4bcc-b0ee-9d85daaea925_1760051026579.
 interface StudentDashboardProps {
   student: Student;
   onStartTest: () => void;
+  onLogout: () => void;
 }
 
-export default function StudentDashboard({ student, onStartTest }: StudentDashboardProps) {
+export default function StudentDashboard({ student, onStartTest, onLogout }: StudentDashboardProps) {
   const [, setLocation] = useLocation();
   const [dateRange, setDateRange] = useState<{ from?: Date; to?: Date }>({});
   const [showReport, setShowReport] = useState(false);
@@ -170,13 +171,27 @@ export default function StudentDashboard({ student, onStartTest }: StudentDashbo
                 <p className="text-xs text-muted-foreground">{student.grade}</p>
               </div>
             </div>
-            <Button
-              onClick={onStartTest}
-              className="bg-primary text-primary-foreground"
-              data-testid="start-new-test"
-            >
-              새 테스트
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={onLogout}
+                data-testid="logout-button"
+                className="text-muted-foreground hover:text-foreground"
+              >
+                <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                </svg>
+                로그아웃
+              </Button>
+              <Button
+                onClick={onStartTest}
+                className="bg-primary text-primary-foreground"
+                data-testid="start-new-test"
+              >
+                새 테스트
+              </Button>
+            </div>
           </div>
 
           {/* Date Range and Report */}

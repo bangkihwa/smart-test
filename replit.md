@@ -2,277 +2,81 @@
 
 ## Overview
 
-This is a full-stack web application for managing student tests and results at 목동에이원 academy. Built with React, Express, and PostgreSQL, the system allows students to take tests via an OMR (Optical Mark Recognition) interface and provides administrators with comprehensive tools to manage students, tests, view results, analyze performance trends, generate statistical reports, and sync data with Airtable. The application features a mobile-responsive design with Korean language support.
+This full-stack web application, built with React, Express, and PostgreSQL, is designed to manage student tests and results for 목동에이원 academy. It provides an OMR-style interface for students to take tests and offers administrators comprehensive tools for student management, test creation, performance analysis, statistical reporting, and data synchronization with Airtable. The system supports a mobile-responsive design and Korean language. The business vision is to streamline academic operations, improve student performance tracking, and offer valuable insights into learning trends.
 
 ## User Preferences
 
 Preferred communication style: Simple, everyday language.
 
-## Recent Changes (October 2025)
-
-### Completed Features
-- **Student Login System** (client/src/pages/student-test.tsx, server/routes.ts)
-  - Direct student login with ID, name, and grade input
-  - Backend validation with Zod schema (trim, min length, grade enum)
-  - Automatic student creation if doesn't exist
-  - Mismatch detection for existing students
-  - Error messages display stored student info on mismatch
-  - Route structure: / (student login → dashboard), /admin (admin dashboard)
-
-- **Student Personal Dashboard** (client/src/pages/student-dashboard.tsx)
-  - Cumulative statistics display (총 테스트, 평균 점수, 최근 점수)
-  - Score trend visualization using Recharts LineChart
-  - Emphasized assigned tasks section with border-2 border-primary styling
-  - Color-coded task badges (heavy=destructive, medium=default, light=secondary)
-  - Test results history with clickable cards
-  - Empty state UI for new students
-  - "새 테스트" button to start new test
-  - Navigation flow: Dashboard → Test Selection → OMR Input
-  - **Period-based Report Generation**:
-    - Date range selection using Calendar component
-    - Comprehensive learning report with visual analytics
-    - Score trend chart for selected period
-    - Section-wise accuracy analysis with bar charts
-    - Automatic detection of weakest sections
-    - Display of core content for weak areas
-    - Categorized task assignments by section
-    - Mobile-optimized modal presentation
-
-- **Performance Analytics Dashboard** (client/src/pages/analytics.tsx)
-  - Student and grade-level filtering
-  - Summary statistics (average score, total students, tests taken)
-  - Score trend visualization using Recharts line charts
-  - Time-based performance tracking across multiple tests
-
-- **Statistical Reports System** (client/src/pages/reports.tsx, server/airtable-storage.ts)
-  - Comprehensive filtering by test, grade level, and date range
-  - Detailed summary statistics and performance metrics
-  - **Enhanced table display**:
-    - 추가과제 column with color-coded badges (상=red, 중=blue, 하=gray)
-    - 섹션별 점수 column showing performance per section
-    - Student information with test results
-  - **CSV export functionality**:
-    - Includes all data: 학생명, 학번, 학년, 시험명, 과목, 점수, 섹션별 점수, 추가과제, 완료일
-    - UTF-8 BOM for proper Korean display in Excel
-  - **Print-friendly layout**:
-    - Landscape A4 orientation
-    - Optimized font size and padding
-  - **Backend improvements**:
-    - Fixed `/api/test-results/all` endpoint to properly join student and test data
-    - Efficient data loading with Promise.all
-    - Fallback objects for missing data
-
-- **Airtable Integration** (server/airtable-sync.ts, client/src/pages/airtable-settings.tsx)
-  - Bidirectional sync with Airtable for external database backup
-  - Configuration UI for API key and Base ID management
-  - Data export to Airtable (students, tests, results)
-  - Data import from Airtable for viewing external records
-  - Real-time sync status and result display
-
-- **Test Subject Options** (client/src/pages/admin-dashboard.tsx)
-  - Added integrated science subjects: 통합과학 중1, 통합과학 중2, 통합과학 중3
-  - Existing subjects: 화학, 생물, 물리, 지구과학
-  - Subject displayed as badge on student test selection cards
-  - Enhanced test creation mutation with error handling and toast feedback
-
-- **Academy Logo Integration** (all pages)
-  - Added 목동에이원과학학원 logo (AONE SCIENCE) across all pages for brand visibility
-  - **Admin Navigation Sidebar**: Logo in top section with academy name
-  - **Student Login Page**: Logo displayed in login card and mobile header
-  - **Student Dashboard**: Logo in header alongside student info
-  - **Reports Page**: Logo next to page title
-  - **Analytics Page**: Logo next to page title
-  - Logo file: `attached_assets/403e7f94-9ba8-4bcc-b0ee-9d85daaea925_1760051026579.jpg`
-  - Implemented using @assets import alias for clean asset management
-
-- **Grade-Based Test Management** (shared/schema.ts, client/src/pages/admin-dashboard.tsx, client/src/pages/student-test.tsx, server/airtable-storage.ts, server/airtable-sync.ts)
-  - **Schema & Database**:
-    - Added grade field to Tests schema (nullable for backward compatibility)
-    - Airtable Tests table includes Grade field for full data synchronization
-    - Fallback logic handles missing Grade field in Airtable gracefully
-  - **Admin Test Creation**:
-    - Grade selection required before submission
-    - **Form Validation Enhancement**:
-      - Removed all HTML `required` attributes to prevent Radix UI Select conflicts
-      - Implemented comprehensive manual validation with Zod-style checks
-      - Validates: testId, name, subject, grade, and all section fields (name, coreContent, assignments)
-      - Toast notifications provide specific error messages for each validation failure
-      - Prevents browser's "Please fill out this field" popup from blocking form submission
-  - **Student Test Filtering**:
-    - Students only see tests matching their grade level (`!test.grade || test.grade === student?.grade`)
-    - Tests without grade are visible to all students (legacy support)
-    - E2E verified: 중등1학년 student sees 중등1학년 tests, 고등1학년 student does not
-
-- **Test Results Enhancement** (client/src/pages/test-results.tsx)
-  - Display incorrect answers with side-by-side comparison
-  - Shows student's answer vs correct answer for each wrong question
-  - Organized by section with question number reference
-  - Clear visual indication of errors for learning feedback
-
-### Pending Future Enhancements
-- Parent notification system for test result alerts
-- Support for different question types (true/false, short answer, essay)
-
 ## System Architecture
 
 ### Frontend Architecture
-
-**Framework & Build System**
-- React 18 with TypeScript for type-safe component development
-- Vite as the build tool and development server for fast HMR (Hot Module Replacement)
-- Wouter for lightweight client-side routing instead of React Router
-- TanStack Query (React Query) for server state management and data fetching
-
-**UI Component System**
-- Shadcn/ui component library built on Radix UI primitives for accessible, unstyled components
-- Tailwind CSS for utility-first styling with custom design tokens
-- CSS variables for theming support (light/dark mode ready)
-- Component path aliases configured for clean imports (@/components, @/lib, @/hooks)
-
-**State Management Strategy**
-- React Query handles all server state with configured query client
-- Local component state via React hooks for UI-specific state
-- Toast notifications for user feedback via custom toast hook
-- Form state managed through react-hook-form with Zod validation resolvers
+- **Framework**: React 18 with TypeScript, Vite for build and HMR.
+- **Routing**: Wouter for lightweight client-side routing.
+- **State Management**: TanStack Query for server state, React hooks for local UI state.
+- **UI Components**: Shadcn/ui (built on Radix UI) for accessible components, Tailwind CSS for styling, CSS variables for theming.
+- **Form Management**: React Hook Form with Zod for validation.
 
 ### Backend Architecture
+- **Server**: Express.js with TypeScript.
+- **Database**: PostgreSQL (Neon Serverless PostgreSQL) with Drizzle ORM for type-safe queries and schema management.
+- **Data Models**: Students, Tests (multi-section with configurable answers), Test Results (student answers, scores, section performance, assigned tasks). Uses JSON columns for flexible data structures.
+- **API**: RESTful endpoints for CRUD operations, search, filtering, and validation using Zod. Includes student login, test submission with automatic grading, and result retrieval.
+- **Grading Logic**: Server-side answer comparison, section-based scoring, and automatic task assignment based on error thresholds.
 
-**Server Framework**
-- Express.js for REST API endpoints
-- TypeScript for type safety across server code
-- Custom Vite middleware integration for development with HMR support
-- Request logging middleware for API monitoring
+### Key Application Features
 
-**Database Layer**
-- PostgreSQL as the primary database
-- Drizzle ORM for type-safe database queries and schema management
-- Neon Serverless PostgreSQL for database hosting
-- WebSocket support for Neon's serverless connection pooling
-- Database schema defined in shared/schema.ts for type sharing between client and server
+#### Student Features
+- **Login & Session Management**: 
+  - Simple ID, name, grade login with auto-creation and mismatch detection
+  - localStorage-based session persistence - stays logged in across page refreshes
+  - Auto-login on page load if valid session exists
+  - Logout button in dashboard header clears session and returns to login
+  - "메인으로 돌아가기" from test results preserves session and returns to dashboard
+- **Personal Dashboard**: Cumulative stats, score trend charts (Recharts), emphasized assigned tasks, test history, new test initiation, logout button.
+- **OMR Test Interface**: Mobile-optimized, 30-question OMR with instant grading, intelligent task assignment (Light, Medium, Heavy based on errors), and detailed section-specific results.
+- **Period-based Report Generation**: Date range selection for comprehensive learning reports, score trend analysis, section-wise accuracy, and categorized task assignments.
 
-**Data Models**
-- Students: ID, name, grade level tracking
-- Tests: Multi-section test structure with configurable answers and assignments
-- Test Results: Student answers, scores, section-level performance tracking, and assigned tasks
-- JSON columns for flexible data structures (test sections, answers, scores)
+#### Administrator Features
+- **Management**: CRUD for students and tests.
+- **Results & Analytics**: Comprehensive view of test results, performance analytics with student/grade filtering, summary statistics, and time-based tracking.
+- **Statistical Reports**: Filterable reports (test, grade, date), summary metrics, CSV export (UTF-8 BOM for Korean), and print-friendly layouts.
+- **Test Subject Options**: Supports various science subjects (화학, 생물, 물리, 지구과학, 통합과학 중1-3).
+- **Grade-Based Test Management**: Tests can be assigned to specific grades, with students only seeing relevant tests. Admin test creation includes robust validation for all fields.
+- **Test Results Enhancement**: Displays incorrect answers side-by-side with correct answers for learning feedback.
+- **Academy Logo Integration**: "목동에이원과학학원" logo integrated across all pages for branding.
 
-**API Structure**
-- RESTful endpoints organized by resource (students, tests, test-results)
-- CRUD operations for all primary entities
-- Search and filtering capabilities for students and test results
-- Validation using Zod schemas derived from Drizzle schema definitions
-- Student login endpoint (POST /api/students/login) with validation and auto-creation
-- Test result endpoints:
-  - GET /api/test-results/student/:studentId - Fetch student's test results for dashboard
-  - POST /api/test-results - Create test result directly (development/testing)
-  - POST /api/test-results/submit - Submit test with automatic grading
+## External Dependencies
 
-### External Dependencies
+### Database Services
+- **Neon Serverless PostgreSQL**: Serverless PostgreSQL database with WebSocket support.
 
-**Database Services**
-- Neon Serverless PostgreSQL (@neondatabase/serverless) - Serverless PostgreSQL database with WebSocket support for connection pooling
+### UI Component Libraries
+- **Radix UI**: Accessible, unstyled component primitives.
+- **Shadcn/ui**: Pre-built components leveraging Radix UI and Tailwind.
+- **Embla Carousel**: Touch-friendly carousel.
+- **Lucide React**: Icon library.
+- **CMDK**: Command menu/palette.
 
-**UI Component Libraries**
-- Radix UI - Unstyled, accessible component primitives (accordion, dialog, dropdown, select, tabs, toast, etc.)
-- Shadcn/ui - Pre-built components using Radix UI and Tailwind
-- Embla Carousel - Touch-friendly carousel component
-- Lucide React - Icon library
-- CMDK - Command menu/palette component
+### Form & Validation
+- **React Hook Form**: Form state management.
+- **Zod**: Schema validation.
+- **Drizzle Zod**: Generates Zod schemas from Drizzle.
 
-**Form & Validation**
-- React Hook Form (@hookform/resolvers) - Form state management
-- Zod - Schema validation for forms and API data
-- Drizzle Zod - Generate Zod schemas from Drizzle database schema
+### Utilities & Tooling
+- **date-fns**: Date manipulation.
+- **clsx & tailwind-merge**: Conditional className utilities.
+- **class-variance-authority**: Component variant management.
+- **nanoid**: Unique ID generation.
+- **Recharts**: Charting library for data visualization.
 
-**Utilities & Tooling**
-- date-fns - Date manipulation and formatting
-- clsx & tailwind-merge - Conditional className utilities
-- class-variance-authority - Component variant management
-- nanoid - Unique ID generation
-- Recharts - Chart library for data visualization and analytics
+### External Integrations
+- **Airtable SDK**: Bidirectional synchronization with Airtable for data backup and external record viewing.
 
-**External Integrations**
-- Airtable SDK - External database synchronization and backup
-- WebSocket support for real-time features
+### Development Tools
+- **TypeScript**: Static type checking.
+- **ESBuild**: Production server bundling.
+- **Drizzle Kit**: Database migrations.
 
-**Development Tools**
-- Replit-specific plugins for development banner and error overlay
-- TypeScript for static type checking
-- ESBuild for production server bundling
-- Drizzle Kit for database migrations
-
-**Fonts**
-- Google Fonts (Inter, Noto Sans KR) for multilingual typography with Korean language support
-
-## Key Application Features
-
-### Student Features
-- **Login System**:
-  - Simple login form with student ID, name, and grade selection
-  - Automatic account creation for new students
-  - Data validation ensures correct information entry
-  - Mismatch detection prevents duplicate accounts with wrong info
-- **Personal Dashboard**:
-  - Cumulative test statistics (total tests, average score, recent score)
-  - Interactive score trend chart showing performance over time
-  - Emphasized assigned tasks with visual hierarchy (border, color-coded badges)
-  - Test results history with clickable detail cards
-  - Quick access to start new tests
-- **OMR Test Interface**:
-  - Mobile-optimized OMR interface for test taking (30 questions in 3 sections)
-  - Real-time answer selection and modification
-  - Instant automatic grading upon submission
-  - Intelligent task assignment based on error count:
-    - 0-2 errors: Light task
-    - 3-4 errors: Medium task
-    - 5+ errors: Heavy task
-  - Detailed results view with section-specific feedback
-
-### Administrator Features
-- **Student Management**: CRUD operations for students (중등1-3학년, 고등1-3학년)
-- **Test Creation**: Custom multi-section tests with configurable answers and assignments
-- **Results Dashboard**: Comprehensive view of all test results with search and filtering
-- **Performance Analytics**: 
-  - Student and grade-level performance trends
-  - Score visualization with line charts
-  - Time-based progress tracking
-  - Summary statistics
-- **Statistical Reports**:
-  - Comprehensive filtering (test, grade, date range)
-  - Summary statistics and performance metrics
-  - CSV export for data analysis
-  - Print-friendly report views
-- **Airtable Integration**:
-  - Bidirectional database synchronization
-  - Data backup to external Airtable base
-  - Configuration UI for API credentials
-  - Real-time sync status and results
-
-## Technical Implementation Notes
-
-### Grading Logic (server/routes.ts)
-- Answer comparison using JSON array matching
-- Section-based scoring calculation
-- Automatic task assignment based on error thresholds
-- Persistent storage of results with timestamps
-
-### Analytics Implementation (client/src/pages/analytics.tsx)
-- Aggregated performance queries
-- Recharts integration for trend visualization
-- Multi-level filtering (student, grade)
-- Real-time data updates via React Query
-
-### Airtable Sync (server/airtable-sync.ts)
-- Data export to Airtable tables (Students, Tests, Test Results)
-- API integration using official Airtable SDK
-- Error handling and status reporting
-- Configuration-based connection management
-
-### Form Validation (client/src/pages/admin-dashboard.tsx)
-- **Manual validation approach**: Replaced HTML `required` attributes with manual validation
-- **Radix UI compatibility**: HTML validation conflicts with Radix UI Select, preventing form submission
-- **Validation logic**:
-  - Checks testId, name, subject, grade before section validation
-  - Validates each section's name, coreContent, and all three assignment levels
-  - Returns early with toast notification on first validation failure
-- **User feedback**: Toast messages provide specific, actionable error descriptions
+### Fonts
+- **Google Fonts (Inter, Noto Sans KR)**: Multilingual typography with Korean support.

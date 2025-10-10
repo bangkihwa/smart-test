@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
@@ -25,6 +25,21 @@ export default function StudentTest() {
   const [selectedTest, setSelectedTest] = useState<Test | null>(null);
   const [student, setStudent] = useState<Student | null>(null);
 
+  // Check localStorage for existing student session on mount
+  useEffect(() => {
+    const savedStudent = localStorage.getItem('currentStudent');
+    if (savedStudent) {
+      try {
+        const studentData = JSON.parse(savedStudent);
+        setStudent(studentData);
+        setViewState('dashboard');
+      } catch (error) {
+        console.error('Failed to parse saved student data:', error);
+        localStorage.removeItem('currentStudent');
+      }
+    }
+  }, []);
+
   // Fetch available tests
   const { data: tests, isLoading: testsLoading } = useQuery<Test[]>({
     queryKey: ['/api/tests'],
@@ -43,6 +58,7 @@ export default function StudentTest() {
     },
     onSuccess: (student: Student) => {
       setStudent(student);
+      localStorage.setItem('currentStudent', JSON.stringify(student));
       setViewState('dashboard');
       toast({
         title: "로그인 성공",
@@ -176,6 +192,16 @@ export default function StudentTest() {
     setViewState('dashboard');
   };
 
+  const handleLogout = () => {
+    localStorage.removeItem('currentStudent');
+    setStudent(null);
+    setViewState('login');
+    toast({
+      title: "로그아웃",
+      description: "로그아웃되었습니다.",
+    });
+  };
+
   if (viewState === 'loading') {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -193,6 +219,7 @@ export default function StudentTest() {
         <StudentDashboard
           student={student}
           onStartTest={handleStartTest}
+          onLogout={handleLogout}
         />
         <Navigation />
       </>
