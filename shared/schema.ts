@@ -17,6 +17,7 @@ export const tests = pgTable("tests", {
   testId: text("test_id").notNull().unique(),
   name: text("name").notNull(),
   subject: text("subject").notNull(),
+  grade: text("grade"),
   sections: json("sections").$type<{
     sectionNumber: number;
     name: string;
