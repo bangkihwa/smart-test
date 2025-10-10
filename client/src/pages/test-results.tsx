@@ -128,13 +128,46 @@ export default function TestResults() {
                     </div>
                     
                     {sectionScore.wrongAnswers.length > 0 && (
-                      <div className="flex items-center space-x-1 text-xs mb-3">
-                        <span className="text-muted-foreground">오답:</span>
-                        {sectionScore.wrongAnswers.map(questionNum => (
-                          <Badge key={questionNum} variant="destructive" className="text-xs">
-                            {questionNum}번
-                          </Badge>
-                        ))}
+                      <div className="mb-3">
+                        <div className="flex items-center space-x-1 text-xs mb-2">
+                          <span className="text-muted-foreground">오답:</span>
+                          {sectionScore.wrongAnswers.map(questionNum => (
+                            <Badge key={questionNum} variant="destructive" className="text-xs">
+                              {questionNum}번
+                            </Badge>
+                          ))}
+                        </div>
+                        <div className="bg-destructive/10 border border-destructive/20 rounded-md p-3 space-y-2">
+                          <p className="text-sm font-semibold text-destructive mb-2">틀린 문제 상세</p>
+                          {sectionScore.wrongAnswers.map(questionNum => {
+                            const studentAnswer = result.answers[questionNum - 1];
+                            const correctAnswer = test.sections
+                              .find(s => s.sectionNumber === sectionScore.sectionNumber)
+                              ?.answers[(questionNum - 1) % 10];
+                            return (
+                              <div key={questionNum} className="flex items-center justify-between text-sm bg-background/50 rounded p-2">
+                                <span className="font-medium">{questionNum}번</span>
+                                <div className="flex items-center space-x-4">
+                                  <div className="flex items-center space-x-1">
+                                    <span className="text-muted-foreground text-xs">내 답:</span>
+                                    <Badge variant="outline" className="bg-destructive/20 text-destructive border-destructive/30">
+                                      {studentAnswer}
+                                    </Badge>
+                                  </div>
+                                  <svg className="w-4 h-4 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
+                                  </svg>
+                                  <div className="flex items-center space-x-1">
+                                    <span className="text-muted-foreground text-xs">정답:</span>
+                                    <Badge variant="outline" className="bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 border-green-300 dark:border-green-700">
+                                      {correctAnswer}
+                                    </Badge>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
                       </div>
                     )}
 
