@@ -335,8 +335,8 @@ export default function AdminDashboard() {
       grade: test.grade || '',
       sections: test.sections.map(section => ({
         ...section,
-        answers: [...section.answers],
-        assignments: { ...section.assignments },
+        answers: Array.isArray(section.answers) ? [...section.answers] : [],
+        assignments: section.assignments ? { ...section.assignments } : { light: '', medium: '', heavy: '' },
       })),
     });
     // Scroll to top of form
