@@ -22,11 +22,12 @@ export default function AdminDashboard() {
   const [currentView, setCurrentView] = useState<AdminView>('dashboard');
   const [studentModalOpen, setStudentModalOpen] = useState(false);
   const [editingStudent, setEditingStudent] = useState<Student | null>(null);
+  const [editingTest, setEditingTest] = useState<Test | null>(null);
 
   // Fetch data
-  const { data: students } = useQuery({ queryKey: ['/api/students'] });
-  const { data: tests } = useQuery({ queryKey: ['/api/tests'] });
-  const { data: testResults } = useQuery({ queryKey: ['/api/test-results'] });
+  const { data: students } = useQuery<Student[]>({ queryKey: ['/api/students'] });
+  const { data: tests } = useQuery<Test[]>({ queryKey: ['/api/tests'] });
+  const { data: testResults } = useQuery<TestResult[]>({ queryKey: ['/api/test-results'] });
 
   // Student management
   const [studentForm, setStudentForm] = useState({
@@ -117,39 +118,9 @@ export default function AdminDashboard() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/tests'] });
       toast({ title: "테스트가 생성되었습니다." });
-      // Reset form
-      setTestForm({
-        testId: '',
-        name: '',
-        subject: '',
-        grade: '',
-        sections: [
-          {
-            sectionNumber: 1,
-            name: '',
-            coreContent: '',
-            answers: new Array(10).fill(1),
-            assignments: { light: '', medium: '', heavy: '' }
-          },
-          {
-            sectionNumber: 2,
-            name: '',
-            coreContent: '',
-            answers: new Array(10).fill(1),
-            assignments: { light: '', medium: '', heavy: '' }
-          },
-          {
-            sectionNumber: 3,
-            name: '',
-            coreContent: '',
-            answers: new Array(10).fill(1),
-            assignments: { light: '', medium: '', heavy: '' }
-          }
-        ]
-      });
+      resetTestForm();
     },
     onError: (error: any) => {
-      console.error('Test creation error:', error);
       toast({ 
         title: "테스트 생성 실패", 
         description: error.message || "다시 시도해주세요.",
@@ -157,6 +128,75 @@ export default function AdminDashboard() {
       });
     },
   });
+
+  const updateTestMutation = useMutation({
+    mutationFn: async ({ id, testData }: { id: string, testData: any }) => {
+      const response = await apiRequest('PUT', `/api/tests/${id}`, testData);
+      return await response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/tests'] });
+      toast({ title: "테스트가 수정되었습니다." });
+      resetTestForm();
+      setEditingTest(null);
+    },
+    onError: (error: any) => {
+      toast({ 
+        title: "테스트 수정 실패", 
+        description: error.message || "다시 시도해주세요.",
+        variant: "destructive" 
+      });
+    },
+  });
+
+  const deleteTestMutation = useMutation({
+    mutationFn: async (id: string) => {
+      await apiRequest('DELETE', `/api/tests/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/tests'] });
+      toast({ title: "테스트가 삭제되었습니다." });
+    },
+    onError: () => {
+      toast({ 
+        title: "테스트 삭제 실패", 
+        description: "다시 시도해주세요.",
+        variant: "destructive" 
+      });
+    },
+  });
+
+  const resetTestForm = () => {
+    setTestForm({
+      testId: '',
+      name: '',
+      subject: '',
+      grade: '',
+      sections: [
+        {
+          sectionNumber: 1,
+          name: '',
+          coreContent: '',
+          answers: new Array(10).fill(1),
+          assignments: { light: '', medium: '', heavy: '' }
+        },
+        {
+          sectionNumber: 2,
+          name: '',
+          coreContent: '',
+          answers: new Array(10).fill(1),
+          assignments: { light: '', medium: '', heavy: '' }
+        },
+        {
+          sectionNumber: 3,
+          name: '',
+          coreContent: '',
+          answers: new Array(10).fill(1),
+          assignments: { light: '', medium: '', heavy: '' }
+        }
+      ]
+    });
+  };
 
   const handleStudentSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -276,26 +316,80 @@ export default function AdminDashboard() {
       }
     }
     
-    createTestMutation.mutate(testForm);
+    if (editingTest) {
+      updateTestMutation.mutate({
+        id: editingTest.id,
+        testData: testForm,
+      });
+    } else {
+      createTestMutation.mutate(testForm);
+    }
+  };
+
+  const handleEditTest = (test: Test) => {
+    setEditingTest(test);
+    setTestForm({
+      testId: test.testId,
+      name: test.name,
+      subject: test.subject,
+      grade: test.grade || '',
+      sections: test.sections.map(section => ({
+        ...section,
+        answers: [...section.answers],
+        assignments: { ...section.assignments },
+      })),
+    });
+    // Scroll to top of form
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleDeleteTest = (id: string) => {
+    if (confirm('정말 이 테스트를 삭제하시겠습니까?\n삭제하면 관련된 모든 결과도 함께 삭제됩니다.')) {
+      deleteTestMutation.mutate(id);
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setEditingTest(null);
+    resetTestForm();
   };
 
   const updateTestSection = (sectionIndex: number, field: string, value: any) => {
-    const newSections = [...testForm.sections];
-    if (field.startsWith('assignments.')) {
-      const assignmentType = field.split('.')[1];
-      newSections[sectionIndex].assignments = {
-        ...newSections[sectionIndex].assignments,
-        [assignmentType]: value,
-      };
-    } else {
-      (newSections[sectionIndex] as any)[field] = value;
-    }
+    const newSections = testForm.sections.map((section, idx) => {
+      if (idx === sectionIndex) {
+        if (field.startsWith('assignments.')) {
+          const assignmentType = field.split('.')[1];
+          return {
+            ...section,
+            assignments: {
+              ...section.assignments,
+              [assignmentType]: value,
+            },
+          };
+        } else {
+          return {
+            ...section,
+            [field]: value,
+          };
+        }
+      }
+      return section;
+    });
     setTestForm({ ...testForm, sections: newSections });
   };
 
   const updateAnswer = (sectionIndex: number, questionIndex: number, answer: number) => {
-    const newSections = [...testForm.sections];
-    newSections[sectionIndex].answers[questionIndex] = answer;
+    const newSections = testForm.sections.map((section, idx) => {
+      if (idx === sectionIndex) {
+        const newAnswers = [...section.answers];
+        newAnswers[questionIndex] = answer;
+        return {
+          ...section,
+          answers: newAnswers,
+        };
+      }
+      return section;
+    });
     setTestForm({ ...testForm, sections: newSections });
   };
 
@@ -570,8 +664,20 @@ export default function AdminDashboard() {
   const renderTests = () => (
     <div className="p-6 lg:p-8">
       <div className="mb-8">
-        <h2 className="text-3xl font-bold text-foreground mb-2">테스트 생성</h2>
-        <p className="text-muted-foreground">새로운 테스트를 생성하고 문항을 입력하세요</p>
+        <h2 className="text-3xl font-bold text-foreground mb-2">
+          {editingTest ? '테스트 수정' : '테스트 생성'}
+        </h2>
+        <p className="text-muted-foreground">
+          {editingTest 
+            ? '테스트 정보를 수정하고 저장하세요' 
+            : '새로운 테스트를 생성하고 문항을 입력하세요'
+          }
+        </p>
+        {editingTest && (
+          <Badge variant="outline" className="mt-2">
+            수정 중: {editingTest.testId}
+          </Badge>
+        )}
       </div>
 
       <form onSubmit={handleTestSubmit} className="max-w-4xl space-y-6">
@@ -650,6 +756,7 @@ export default function AdminDashboard() {
                   value={section.name}
                   onChange={(e) => updateTestSection(sectionIndex, 'name', e.target.value)}
                   placeholder={`예: ${sectionIndex === 0 ? '알칼리금속' : sectionIndex === 1 ? '할로젠원소' : '주기적성질'}`}
+                  data-testid={`section-name-${sectionIndex + 1}`}
                 />
               </div>
               
@@ -660,6 +767,7 @@ export default function AdminDashboard() {
                   onChange={(e) => updateTestSection(sectionIndex, 'coreContent', e.target.value)}
                   placeholder="이 섹션의 핵심 개념을 입력하세요..."
                   rows={3}
+                  data-testid={`section-core-content-${sectionIndex + 1}`}
                 />
               </div>
 
@@ -704,6 +812,7 @@ export default function AdminDashboard() {
                       onChange={(e) => updateTestSection(sectionIndex, 'assignments.light', e.target.value)}
                       placeholder="오답 문제 복습"
                       className="text-sm"
+                      data-testid={`assignment-light-section-${sectionIndex + 1}`}
                     />
                   </div>
                   <div>
@@ -713,6 +822,7 @@ export default function AdminDashboard() {
                       onChange={(e) => updateTestSection(sectionIndex, 'assignments.medium', e.target.value)}
                       placeholder="핵심 개념 정리 + 유사 문제 풀이"
                       className="text-sm"
+                      data-testid={`assignment-medium-section-${sectionIndex + 1}`}
                     />
                   </div>
                   <div>
@@ -722,6 +832,7 @@ export default function AdminDashboard() {
                       onChange={(e) => updateTestSection(sectionIndex, 'assignments.heavy', e.target.value)}
                       placeholder="전체 개념 재학습 + 심화 과제"
                       className="text-sm"
+                      data-testid={`assignment-heavy-section-${sectionIndex + 1}`}
                     />
                   </div>
                 </div>
@@ -735,19 +846,96 @@ export default function AdminDashboard() {
           <Button 
             type="submit" 
             className="flex-1" 
-            disabled={createTestMutation.isPending}
+            disabled={createTestMutation.isPending || updateTestMutation.isPending}
             data-testid="save-test-button"
           >
             <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
             </svg>
-            {createTestMutation.isPending ? '저장 중...' : '테스트 저장'}
+            {editingTest 
+              ? (updateTestMutation.isPending ? '수정 중...' : '테스트 수정')
+              : (createTestMutation.isPending ? '저장 중...' : '테스트 저장')
+            }
           </Button>
-          <Button type="button" variant="outline" className="px-6">
-            취소
-          </Button>
+          {editingTest && (
+            <Button 
+              type="button" 
+              variant="outline" 
+              onClick={handleCancelEdit}
+              data-testid="cancel-edit-button"
+            >
+              취소
+            </Button>
+          )}
         </div>
       </form>
+
+      {/* Test List */}
+      <div className="mt-12 max-w-4xl">
+        <h3 className="text-2xl font-bold text-foreground mb-4">등록된 테스트</h3>
+        <Card>
+          <CardContent className="p-0">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>테스트 ID</TableHead>
+                  <TableHead>단원명</TableHead>
+                  <TableHead>과목</TableHead>
+                  <TableHead>학년</TableHead>
+                  <TableHead className="text-right">관리</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {tests && tests.length > 0 ? (
+                  tests.map((test: Test) => (
+                    <TableRow key={test.id}>
+                      <TableCell className="font-mono text-sm">{test.testId}</TableCell>
+                      <TableCell className="font-medium">{test.name}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline">{test.subject}</Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="secondary">{test.grade || '-'}</Badge>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleEditTest(test)}
+                            data-testid={`edit-test-${test.id}`}
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                            </svg>
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDeleteTest(test.id)}
+                            className="text-destructive hover:text-destructive"
+                            data-testid={`delete-test-${test.id}`}
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
+                      등록된 테스트가 없습니다
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 

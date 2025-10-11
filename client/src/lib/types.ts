@@ -11,6 +11,7 @@ export interface Test {
   testId: string;
   name: string;
   subject: string;
+  grade: GradeLevel | null;
   sections: TestSection[];
   createdAt: string;
 }
