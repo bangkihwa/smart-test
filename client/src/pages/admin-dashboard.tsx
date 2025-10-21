@@ -9,13 +9,15 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { BarChart3 } from "lucide-react";
+import { BarChart3, TrendingUp } from "lucide-react";
 import { Link } from "wouter";
 import Navigation from "@/components/navigation";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import type { Student, Test, TestResult, GradeLevel } from "@/lib/types";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { format } from 'date-fns';
 
-type AdminView = 'dashboard' | 'students' | 'tests' | 'results';
+type AdminView = 'dashboard' | 'students' | 'tests' | 'results' | 'analysis';
 
 export default function AdminDashboard() {
   const { toast } = useToast();
@@ -23,6 +25,11 @@ export default function AdminDashboard() {
   const [studentModalOpen, setStudentModalOpen] = useState(false);
   const [editingStudent, setEditingStudent] = useState<Student | null>(null);
   const [editingTest, setEditingTest] = useState<Test | null>(null);
+  
+  // Student analysis filters
+  const [selectedStudentId, setSelectedStudentId] = useState<string>('');
+  const [startDate, setStartDate] = useState<string>('');
+  const [endDate, setEndDate] = useState<string>('');
 
   // Fetch data
   const { data: students } = useQuery<Student[]>({ queryKey: ['/api/students'] });
@@ -1023,6 +1030,312 @@ export default function AdminDashboard() {
     </div>
   );
 
+  const renderAnalysis = () => {
+    // Filter test results by selected student and date range
+    const filteredResults = testResults?.filter((result: TestResult) => {
+      if (!selectedStudentId) return false;
+      if (result.studentId !== selectedStudentId) return false;
+      
+      const resultDate = new Date(result.completedAt);
+      if (startDate) {
+        const start = new Date(startDate);
+        if (resultDate < start) return false;
+      }
+      if (endDate) {
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59, 999);
+        if (resultDate > end) return false;
+      }
+      
+      return true;
+    }) || [];
+
+    // Sort by date
+    const sortedResults = [...filteredResults].sort((a, b) => 
+      new Date(a.completedAt).getTime() - new Date(b.completedAt).getTime()
+    );
+
+    // Prepare chart data
+    const chartData = sortedResults.map((result: TestResult) => {
+      const test = tests?.find((t: Test) => t.id === result.testId);
+      return {
+        date: format(new Date(result.completedAt), 'MM/dd'),
+        score: result.score,
+        testName: test?.name || '알 수 없음',
+      };
+    });
+
+    // Calculate average score
+    const averageScore = sortedResults.length > 0
+      ? Math.round(sortedResults.reduce((sum, r) => sum + r.score, 0) / sortedResults.length * 10) / 10
+      : 0;
+
+    // Get all assigned tasks
+    const allTasks = sortedResults.flatMap((result: TestResult) => 
+      result.assignedTasks.map(task => ({
+        ...task,
+        testName: tests?.find((t: Test) => t.id === result.testId)?.name || '알 수 없음',
+        date: result.completedAt,
+      }))
+    );
+
+    const selectedStudent = students?.find((s: Student) => s.id === selectedStudentId);
+
+    return (
+      <div className="p-6 lg:p-8">
+        <div className="mb-8">
+          <h2 className="text-3xl font-bold text-foreground mb-2">학생별 성적 분석</h2>
+          <p className="text-muted-foreground">학생을 선택하고 기간을 설정하여 성적과 과제를 분석하세요</p>
+        </div>
+
+        {/* Filters */}
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle>필터 설정</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm font-medium mb-2">학생 선택</label>
+                <Select value={selectedStudentId} onValueChange={setSelectedStudentId}>
+                  <SelectTrigger data-testid="select-student-analysis">
+                    <SelectValue placeholder="학생을 선택하세요" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {students?.map((student: Student) => (
+                      <SelectItem key={student.id} value={student.id}>
+                        {student.name} ({student.grade})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-2">시작일</label>
+                <Input
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  data-testid="input-start-date"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-2">종료일</label>
+                <Input
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  data-testid="input-end-date"
+                />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {!selectedStudentId ? (
+          <Card>
+            <CardContent className="p-12 text-center">
+              <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
+                <TrendingUp className="w-8 h-8 text-muted-foreground" />
+              </div>
+              <p className="text-lg text-muted-foreground">학생을 선택하여 성적을 분석하세요</p>
+            </CardContent>
+          </Card>
+        ) : sortedResults.length === 0 ? (
+          <Card>
+            <CardContent className="p-12 text-center">
+              <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
+                <BarChart3 className="w-8 h-8 text-muted-foreground" />
+              </div>
+              <p className="text-lg text-muted-foreground">
+                선택한 기간에 테스트 결과가 없습니다
+              </p>
+            </CardContent>
+          </Card>
+        ) : (
+          <>
+            {/* Summary Stats */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+              <Card>
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
+                      <svg className="w-6 h-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                      </svg>
+                    </div>
+                  </div>
+                  <div className="text-2xl font-bold text-foreground mb-1">{selectedStudent?.name}</div>
+                  <div className="text-sm text-muted-foreground">{selectedStudent?.grade}</div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="w-12 h-12 bg-secondary/10 rounded-lg flex items-center justify-center">
+                      <svg className="w-6 h-6 text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                    </div>
+                  </div>
+                  <div className="text-2xl font-bold text-foreground mb-1">{sortedResults.length}</div>
+                  <div className="text-sm text-muted-foreground">응시한 테스트</div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="w-12 h-12 bg-accent/10 rounded-lg flex items-center justify-center">
+                      <svg className="w-6 h-6 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                      </svg>
+                    </div>
+                  </div>
+                  <div className="text-2xl font-bold text-foreground mb-1">{averageScore}</div>
+                  <div className="text-sm text-muted-foreground">평균 점수</div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Score Trend Chart */}
+            <Card className="mb-6">
+              <CardHeader>
+                <CardTitle>성적 추이</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="h-64">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={chartData}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="date" />
+                      <YAxis domain={[0, 100]} />
+                      <Tooltip 
+                        content={({ active, payload }) => {
+                          if (active && payload && payload.length) {
+                            return (
+                              <div className="bg-card border border-border p-3 rounded-lg shadow-lg">
+                                <p className="font-medium">{payload[0].payload.testName}</p>
+                                <p className="text-sm text-muted-foreground">날짜: {payload[0].payload.date}</p>
+                                <p className="text-sm font-bold text-primary">점수: {payload[0].value}점</p>
+                              </div>
+                            );
+                          }
+                          return null;
+                        }}
+                      />
+                      <Line 
+                        type="monotone" 
+                        dataKey="score" 
+                        stroke="hsl(var(--primary))" 
+                        strokeWidth={2}
+                        dot={{ fill: 'hsl(var(--primary))', r: 4 }}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Test Results Table */}
+            <Card className="mb-6">
+              <CardHeader>
+                <CardTitle>테스트 결과</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>날짜</TableHead>
+                      <TableHead>테스트</TableHead>
+                      <TableHead>점수</TableHead>
+                      <TableHead>오답 수</TableHead>
+                      <TableHead>과제 유형</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {sortedResults.map((result: TestResult) => {
+                      const test = tests?.find((t: Test) => t.id === result.testId);
+                      const totalErrors = result.sectionScores.reduce((sum, section) => sum + section.wrongAnswers.length, 0);
+                      const maxTaskType = result.assignedTasks.reduce((max, task) => 
+                        task.taskType === 'heavy' ? 'heavy' : 
+                        task.taskType === 'medium' && max !== 'heavy' ? 'medium' : 
+                        max === '' ? 'light' : max, '');
+                      
+                      return (
+                        <TableRow key={result.id}>
+                          <TableCell>{format(new Date(result.completedAt), 'yyyy-MM-dd')}</TableCell>
+                          <TableCell className="font-medium">{test?.name || '알 수 없음'}</TableCell>
+                          <TableCell>
+                            <Badge variant={result.score >= 80 ? 'default' : result.score >= 60 ? 'secondary' : 'destructive'}>
+                              {result.score}점
+                            </Badge>
+                          </TableCell>
+                          <TableCell>{totalErrors}개</TableCell>
+                          <TableCell>
+                            <Badge variant={
+                              maxTaskType === 'heavy' ? 'destructive' : 
+                              maxTaskType === 'medium' ? 'secondary' : 
+                              'default'
+                            }>
+                              {maxTaskType === 'heavy' ? '심화' : maxTaskType === 'medium' ? '중급' : '기본'}
+                            </Badge>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+
+            {/* Assigned Tasks */}
+            <Card>
+              <CardHeader>
+                <CardTitle>부여된 과제</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {allTasks.length === 0 ? (
+                  <p className="text-center text-muted-foreground py-8">부여된 과제가 없습니다</p>
+                ) : (
+                  <div className="space-y-4">
+                    {allTasks.map((task, index) => (
+                      <div 
+                        key={index} 
+                        className="border border-border rounded-lg p-4"
+                        data-testid={`task-${index}`}
+                      >
+                        <div className="flex items-start justify-between mb-2">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                              <Badge variant={
+                                task.taskType === 'heavy' ? 'destructive' : 
+                                task.taskType === 'medium' ? 'secondary' : 
+                                'default'
+                              }>
+                                {task.taskType === 'heavy' ? '심화' : task.taskType === 'medium' ? '중급' : '기본'}
+                              </Badge>
+                              <span className="text-sm text-muted-foreground">
+                                {format(new Date(task.date), 'yyyy-MM-dd')}
+                              </span>
+                            </div>
+                            <p className="font-medium text-sm">{task.testName} - {task.sectionName}</p>
+                          </div>
+                        </div>
+                        <p className="text-sm text-muted-foreground">{task.task}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </>
+        )}
+      </div>
+    );
+  };
+
   return (
     <div className="flex h-screen bg-background">
       <Navigation isAdmin />
@@ -1032,18 +1345,19 @@ export default function AdminDashboard() {
         <header className="md:hidden bg-card border-b border-border sticky top-0 z-10">
           <div className="flex items-center justify-between p-4">
             <h1 className="text-lg font-bold text-foreground">관리자</h1>
-            <div className="flex space-x-2">
-              {(['dashboard', 'students', 'tests', 'results'] as AdminView[]).map((view) => (
+            <div className="flex space-x-1 overflow-x-auto">
+              {(['dashboard', 'students', 'tests', 'results', 'analysis'] as AdminView[]).map((view) => (
                 <Button
                   key={view}
                   variant={currentView === view ? "default" : "ghost"}
                   size="sm"
                   onClick={() => setCurrentView(view)}
-                  className="text-xs"
+                  className="text-xs whitespace-nowrap"
                 >
                   {view === 'dashboard' ? '대시보드' : 
                    view === 'students' ? '학생' :
-                   view === 'tests' ? '테스트' : '성적'}
+                   view === 'tests' ? '테스트' : 
+                   view === 'results' ? '성적' : '분석'}
                 </Button>
               ))}
             </div>
@@ -1053,7 +1367,7 @@ export default function AdminDashboard() {
         {/* Desktop Tabs */}
         <div className="hidden md:block border-b border-border">
           <div className="flex space-x-8 px-8 pt-4">
-            {(['dashboard', 'students', 'tests', 'results'] as AdminView[]).map((view) => (
+            {(['dashboard', 'students', 'tests', 'results', 'analysis'] as AdminView[]).map((view) => (
               <button
                 key={view}
                 onClick={() => setCurrentView(view)}
@@ -1066,7 +1380,8 @@ export default function AdminDashboard() {
               >
                 {view === 'dashboard' ? '대시보드' : 
                  view === 'students' ? '학생 관리' :
-                 view === 'tests' ? '테스트 생성' : '성적 조회'}
+                 view === 'tests' ? '테스트 생성' : 
+                 view === 'results' ? '성적 조회' : '학생별 분석'}
               </button>
             ))}
           </div>
@@ -1076,6 +1391,7 @@ export default function AdminDashboard() {
         {currentView === 'students' && renderStudents()}
         {currentView === 'tests' && renderTests()}
         {currentView === 'results' && renderResults()}
+        {currentView === 'analysis' && renderAnalysis()}
       </main>
 
       <Navigation />

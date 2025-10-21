@@ -10,6 +10,20 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes (October 2025)
 
+### Student Performance Analysis Feature
+- **Date**: October 21, 2025
+- **Feature**: Added period-based student performance analysis in admin dashboard
+- **File**: `client/src/pages/admin-dashboard.tsx`
+- **Details**: New "학생별 분석" (Student Analysis) tab in admin panel with:
+  - Student selection dropdown to choose individual students
+  - Date range filters (start date and end date) to analyze specific periods
+  - Summary statistics cards showing student info, total tests taken, and average score
+  - Line chart visualizing score trends over time using Recharts
+  - Detailed test results table with dates, scores, error counts, and task types
+  - Complete list of assigned tasks organized by test and section
+- **Use Case**: Administrators can now track individual student progress over custom time periods, identify learning patterns, and review all assigned tasks in one view
+- **Design**: Responsive layout with empty states for no student selection or no results found
+
 ### Security Enhancement - Mobile Navigation Removal
 - **Date**: October 21, 2025
 - **Change**: Removed mobile bottom navigation completely for student users
@@ -66,6 +80,7 @@ Preferred communication style: Simple, everyday language.
 #### Administrator Features
 - **Management**: CRUD for students and tests.
 - **Results & Analytics**: Comprehensive view of test results, performance analytics with student/grade filtering, summary statistics, and time-based tracking.
+- **Student Performance Analysis**: Period-based individual student analysis with customizable date ranges, displaying score trends via interactive charts, detailed test results history, and complete task assignment lists.
 - **Statistical Reports**: Filterable reports (test, grade, date), summary metrics, CSV export (UTF-8 BOM for Korean), and print-friendly layouts.
 - **Test Subject Options**: Supports various science subjects (화학, 생물, 물리, 지구과학, 통합과학 중1-3).
 - **Grade-Based Test Management**: Tests can be assigned to specific grades, with students only seeing relevant tests. Admin test creation includes robust validation for all fields.
