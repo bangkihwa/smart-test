@@ -206,7 +206,7 @@ export class AirtableStorage implements IStorage {
         name: record.fields['Name'] as string,
         subject: record.fields['Subject'] as string,
         grade: (record.fields['Grade'] as string) || null,
-        sections: JSON.parse(record.fields['Sections'] as string) as any,
+        sections: record.fields['Sections'] ? JSON.parse(record.fields['Sections'] as string) : [],
         createdAt: new Date(record.fields['Created At'] as string),
       };
     } catch (error) {
@@ -233,7 +233,7 @@ export class AirtableStorage implements IStorage {
         name: record.fields['Name'] as string,
         subject: record.fields['Subject'] as string,
         grade: (record.fields['Grade'] as string) || null,
-        sections: JSON.parse(record.fields['Sections'] as string) as any,
+        sections: record.fields['Sections'] ? JSON.parse(record.fields['Sections'] as string) : [],
         createdAt: new Date(record.fields['Created At'] as string),
       };
     } catch (error) {
@@ -361,7 +361,7 @@ export class AirtableStorage implements IStorage {
         name: record.fields['Name'] as string,
         subject: record.fields['Subject'] as string,
         grade: (record.fields['Grade'] as string) || null,
-        sections: JSON.parse(record.fields['Sections'] as string) as any,
+        sections: record.fields['Sections'] ? JSON.parse(record.fields['Sections'] as string) : [],
         createdAt: new Date(record.fields['Created At'] as string),
       }));
     } catch (error) {
@@ -387,10 +387,10 @@ export class AirtableStorage implements IStorage {
         id: record.fields['ID'] as string,
         studentId: record.fields['Student ID Internal'] as string,
         testId: record.fields['Test ID Internal'] as string,
-        answers: JSON.parse(record.fields['Answers'] as string) as number[],
-        score: record.fields['Score'] as number,
-        sectionScores: JSON.parse(record.fields['Section Scores'] as string) as any,
-        assignedTasks: JSON.parse(record.fields['Assigned Tasks'] as string) as any,
+        answers: record.fields['Answers'] ? JSON.parse(record.fields['Answers'] as string) : [],
+        score: record.fields['Score'] as number || 0,
+        sectionScores: record.fields['Section Scores'] ? JSON.parse(record.fields['Section Scores'] as string) : [],
+        assignedTasks: record.fields['Assigned Tasks'] ? JSON.parse(record.fields['Assigned Tasks'] as string) : [],
         completedAt: new Date(record.fields['Completed At'] as string),
       };
     } catch (error) {
@@ -447,10 +447,10 @@ export class AirtableStorage implements IStorage {
         id: record.fields['ID'] as string,
         studentId: record.fields['Student ID Internal'] as string,
         testId: record.fields['Test ID Internal'] as string,
-        answers: JSON.parse(record.fields['Answers'] as string),
-        score: record.fields['Score'] as number,
-        sectionScores: JSON.parse(record.fields['Section Scores'] as string),
-        assignedTasks: JSON.parse(record.fields['Assigned Tasks'] as string),
+        answers: record.fields['Answers'] ? JSON.parse(record.fields['Answers'] as string) : [],
+        score: record.fields['Score'] as number || 0,
+        sectionScores: record.fields['Section Scores'] ? JSON.parse(record.fields['Section Scores'] as string) : [],
+        assignedTasks: record.fields['Assigned Tasks'] ? JSON.parse(record.fields['Assigned Tasks'] as string) : [],
         completedAt: new Date(record.fields['Completed At'] as string),
       }));
     } catch (error) {
@@ -472,10 +472,10 @@ export class AirtableStorage implements IStorage {
         id: record.fields['ID'] as string,
         studentId: record.fields['Student ID Internal'] as string,
         testId: record.fields['Test ID Internal'] as string,
-        answers: JSON.parse(record.fields['Answers'] as string),
-        score: record.fields['Score'] as number,
-        sectionScores: JSON.parse(record.fields['Section Scores'] as string),
-        assignedTasks: JSON.parse(record.fields['Assigned Tasks'] as string),
+        answers: record.fields['Answers'] ? JSON.parse(record.fields['Answers'] as string) : [],
+        score: record.fields['Score'] as number || 0,
+        sectionScores: record.fields['Section Scores'] ? JSON.parse(record.fields['Section Scores'] as string) : [],
+        assignedTasks: record.fields['Assigned Tasks'] ? JSON.parse(record.fields['Assigned Tasks'] as string) : [],
         completedAt: new Date(record.fields['Completed At'] as string),
       }));
     } catch (error) {
@@ -496,10 +496,10 @@ export class AirtableStorage implements IStorage {
         id: record.fields['ID'] as string,
         studentId: record.fields['Student ID Internal'] as string,
         testId: record.fields['Test ID Internal'] as string,
-        answers: JSON.parse(record.fields['Answers'] as string),
-        score: record.fields['Score'] as number,
-        sectionScores: JSON.parse(record.fields['Section Scores'] as string),
-        assignedTasks: JSON.parse(record.fields['Assigned Tasks'] as string),
+        answers: record.fields['Answers'] ? JSON.parse(record.fields['Answers'] as string) : [],
+        score: record.fields['Score'] as number || 0,
+        sectionScores: record.fields['Section Scores'] ? JSON.parse(record.fields['Section Scores'] as string) : [],
+        assignedTasks: record.fields['Assigned Tasks'] ? JSON.parse(record.fields['Assigned Tasks'] as string) : [],
         completedAt: new Date(record.fields['Completed At'] as string),
       }));
     } catch (error) {
@@ -520,10 +520,10 @@ export class AirtableStorage implements IStorage {
         id: record.fields['ID'] as string,
         studentId: record.fields['Student ID Internal'] as string,
         testId: record.fields['Test ID Internal'] as string,
-        answers: JSON.parse(record.fields['Answers'] as string),
-        score: record.fields['Score'] as number,
-        sectionScores: JSON.parse(record.fields['Section Scores'] as string),
-        assignedTasks: JSON.parse(record.fields['Assigned Tasks'] as string),
+        answers: record.fields['Answers'] ? JSON.parse(record.fields['Answers'] as string) : [],
+        score: record.fields['Score'] as number || 0,
+        sectionScores: record.fields['Section Scores'] ? JSON.parse(record.fields['Section Scores'] as string) : [],
+        assignedTasks: record.fields['Assigned Tasks'] ? JSON.parse(record.fields['Assigned Tasks'] as string) : [],
         completedAt: new Date(record.fields['Completed At'] as string),
       }));
 
@@ -590,10 +590,10 @@ export class AirtableStorage implements IStorage {
         id: record.fields['ID'] as string,
         studentId: record.fields['Student ID Internal'] as string,
         testId: record.fields['Test ID Internal'] as string,
-        answers: JSON.parse(record.fields['Answers'] as string),
-        score: record.fields['Score'] as number,
-        sectionScores: JSON.parse(record.fields['Section Scores'] as string),
-        assignedTasks: JSON.parse(record.fields['Assigned Tasks'] as string),
+        answers: record.fields['Answers'] ? JSON.parse(record.fields['Answers'] as string) : [],
+        score: record.fields['Score'] as number || 0,
+        sectionScores: record.fields['Section Scores'] ? JSON.parse(record.fields['Section Scores'] as string) : [],
+        assignedTasks: record.fields['Assigned Tasks'] ? JSON.parse(record.fields['Assigned Tasks'] as string) : [],
         completedAt: new Date(record.fields['Completed At'] as string),
       }));
     } catch (error) {
