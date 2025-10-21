@@ -8,6 +8,32 @@ This full-stack web application, built with React, Express, and PostgreSQL, is d
 
 Preferred communication style: Simple, everyday language.
 
+## Recent Changes (October 2025)
+
+### Security Enhancement - Mobile Navigation Removal
+- **Date**: October 21, 2025
+- **Change**: Removed mobile bottom navigation completely for student users
+- **File**: `client/src/components/navigation.tsx`
+- **Details**: Mobile navigation component now returns `null` for non-admin users (isAdmin=false), preventing students from accessing admin panel via mobile UI
+- **Security Impact**: Students can no longer see or access "관리" (Admin) button on mobile devices
+
+### Airtable Integration Stability Fix
+- **Date**: October 21, 2025
+- **Issue**: Airtable SDK `eachPage()` method causing `TypeError: Cannot read properties of undefined (reading 'offset')`
+- **Solution**: Replaced all `.eachPage()` calls with `.all()` method for more stable Promise-based API interaction
+- **File**: `server/airtable-storage.ts`
+- **Methods Updated**:
+  - `getAllStudents()`
+  - `searchStudents()`
+  - `getAllTests()`
+  - `getTestResultsByStudent()`
+  - `getTestResultsByTest()`
+  - `getAllTestResults()`
+  - `getAllTestResultsWithRelations()`
+  - `getFilteredTestResults()`
+- **Error Handling**: Added try-catch blocks to all methods, returning empty arrays on errors instead of crashing
+- **Testing**: Verified with 172 student records successfully loaded from Airtable
+
 ## System Architecture
 
 ### Frontend Architecture
