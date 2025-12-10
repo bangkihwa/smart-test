@@ -79,12 +79,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
-      // Update grade if different
-      if (student.grade !== validated.grade) {
-        student = await storage.updateStudent(student.id, { grade: validated.grade });
-      }
-      
-      res.json(student);
+      // Return student with the selected grade for test filtering (don't update DB)
+      res.json({
+        ...student,
+        grade: validated.grade,
+      });
     } catch (error) {
       if (error instanceof z.ZodError) {
         return res.status(400).json({ 
