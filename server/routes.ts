@@ -62,25 +62,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const validated = loginSchema.parse(req.body);
       
-      // Check if student exists
+      // Check if student exists (must be pre-registered by admin)
       let student = await storage.getStudentByStudentId(validated.studentId);
       
       if (!student) {
-        // Create new student with validated data
-        student = await storage.createStudent({
-          studentId: validated.studentId,
-          name: validated.name,
-          grade: validated.grade,
+        // Student not found - must be registered by admin first
+        return res.status(404).json({ 
+          message: "등록되지 않은 학생입니다. 관리자에게 문의하세요.",
         });
-      } else {
-        // Check for mismatched info on existing student
-        if (student.name !== validated.name || student.grade !== validated.grade) {
-          return res.status(409).json({ 
-            message: "입력한 정보가 기존 정보와 일치하지 않습니다.",
-            storedName: student.name,
-            storedGrade: student.grade,
-          });
-        }
+      }
+      
+      // Check if name matches (grade doesn't need to match)
+      if (student.name !== validated.name) {
+        return res.status(409).json({ 
+          message: "이름이 일치하지 않습니다. 다시 확인해주세요.",
+        });
+      }
+      
+      // Update grade if different
+      if (student.grade !== validated.grade) {
+        student = await storage.updateStudent(student.id, { grade: validated.grade });
       }
       
       res.json(student);
