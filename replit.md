@@ -2,51 +2,35 @@
 
 ## Overview
 
-This full-stack web application, built with React, Express, and PostgreSQL, is designed to manage student tests and results for 목동에이원 academy. It provides an OMR-style interface for students to take tests and offers administrators comprehensive tools for student management, test creation, performance analysis, statistical reporting, and data synchronization with Airtable. The system supports a mobile-responsive design and Korean language. The business vision is to streamline academic operations, improve student performance tracking, and offer valuable insights into learning trends.
+This full-stack web application, built with React, Express, and Supabase, is designed to manage student tests and results for 목동에이원 academy. It provides an OMR-style interface for students to take tests and offers administrators comprehensive tools for student management, test creation, performance analysis, and statistical reporting. The system supports a mobile-responsive design and Korean language. The business vision is to streamline academic operations, improve student performance tracking, and offer valuable insights into learning trends.
 
 ## User Preferences
 
 Preferred communication style: Simple, everyday language.
 
-## Recent Changes (October 2025)
+## Recent Changes (December 2025)
+
+### Storage Migration: Airtable to Supabase
+- **Date**: December 10, 2025
+- **Change**: Migrated data storage from Airtable to Supabase
+- **Files**: 
+  - `server/supabase-storage.ts` - New Supabase storage implementation
+  - `server/storage.ts` - Updated to use SupabaseStorage
+- **Details**: 
+  - Full CRUD operations for students, tests, and test results
+  - Uses Supabase JavaScript SDK for database operations
+  - Maintains IStorage interface compatibility
+  - Snake_case to camelCase field mapping for API consistency
+- **Required Environment Variables**: `SUPABASE_URL`, `SUPABASE_ANON_KEY`
+- **Database Schema**: Supabase tables (students, tests, test_results) with UUID primary keys and JSONB for complex data
+
+## Previous Changes (October 2025)
 
 ### Student Performance Analysis Feature
 - **Date**: October 21, 2025
 - **Feature**: Added period-based student performance analysis in admin dashboard
 - **File**: `client/src/pages/admin-dashboard.tsx`
-- **Details**: New "학생별 분석" (Student Analysis) tab in admin panel with:
-  - Student selection dropdown to choose individual students
-  - Date range filters (start date and end date) to analyze specific periods
-  - Summary statistics cards showing student info, total tests taken, and average score
-  - Line chart visualizing score trends over time using Recharts
-  - Detailed test results table with dates, scores, error counts, and task types
-  - Complete list of assigned tasks organized by test and section
-- **Use Case**: Administrators can now track individual student progress over custom time periods, identify learning patterns, and review all assigned tasks in one view
-- **Design**: Responsive layout with empty states for no student selection or no results found
-
-### Security Enhancement - Mobile Navigation Removal
-- **Date**: October 21, 2025
-- **Change**: Removed mobile bottom navigation completely for student users
-- **File**: `client/src/components/navigation.tsx`
-- **Details**: Mobile navigation component now returns `null` for non-admin users (isAdmin=false), preventing students from accessing admin panel via mobile UI
-- **Security Impact**: Students can no longer see or access "관리" (Admin) button on mobile devices
-
-### Airtable Integration Stability Fix
-- **Date**: October 21, 2025
-- **Issue**: Airtable SDK `eachPage()` method causing `TypeError: Cannot read properties of undefined (reading 'offset')`
-- **Solution**: Replaced all `.eachPage()` calls with `.all()` method for more stable Promise-based API interaction
-- **File**: `server/airtable-storage.ts`
-- **Methods Updated**:
-  - `getAllStudents()`
-  - `searchStudents()`
-  - `getAllTests()`
-  - `getTestResultsByStudent()`
-  - `getTestResultsByTest()`
-  - `getAllTestResults()`
-  - `getAllTestResultsWithRelations()`
-  - `getFilteredTestResults()`
-- **Error Handling**: Added try-catch blocks to all methods, returning empty arrays on errors instead of crashing
-- **Testing**: Verified with 172 student records successfully loaded from Airtable
+- **Details**: New "학생별 분석" (Student Analysis) tab in admin panel with customizable date ranges, score trend charts, and task assignment lists
 
 ## System Architecture
 
@@ -59,8 +43,8 @@ Preferred communication style: Simple, everyday language.
 
 ### Backend Architecture
 - **Server**: Express.js with TypeScript.
-- **Database**: PostgreSQL (Neon Serverless PostgreSQL) with Drizzle ORM for type-safe queries and schema management.
-- **Data Models**: Students, Tests (multi-section with configurable answers), Test Results (student answers, scores, section performance, assigned tasks). Uses JSON columns for flexible data structures.
+- **Database**: Supabase (PostgreSQL) with custom storage class for data operations.
+- **Data Models**: Students, Tests (multi-section with configurable answers), Test Results (student answers, scores, section performance, assigned tasks). Uses JSONB columns for flexible data structures.
 - **API**: RESTful endpoints for CRUD operations, search, filtering, and validation using Zod. Includes student login, test submission with automatic grading, and result retrieval.
 - **Grading Logic**: Server-side answer comparison, section-based scoring, and automatic task assignment based on error thresholds.
 
