@@ -211,10 +211,10 @@ export class DatabaseStorage implements IStorage {
   }
 }
 
-import { AirtableStorage } from './airtable-storage';
+import { SupabaseStorage } from './supabase-storage';
 
-// Use Airtable as main database
-export const storage = new AirtableStorage(
-  process.env.AIRTABLE_API_KEY!,
-  process.env.AIRTABLE_BASE_ID!
+// Use Supabase as main database
+export const storage = new SupabaseStorage(
+  process.env.SUPABASE_URL!,
+  process.env.SUPABASE_ANON_KEY!
 );
