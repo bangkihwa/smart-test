@@ -62,7 +62,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Remove /api prefix
   path = path.replace(/^\/api/, '') || '/';
 
-  console.log('Request URL:', url, 'Parsed path:', path, 'Method:', method);
+  console.log('Request URL:', url, 'Parsed path:', path, 'Method:', method, 'Body:', JSON.stringify(body));
 
   try {
     // Students endpoints
@@ -108,6 +108,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
 
       const student = mapStudent(data);
+      console.log('Login attempt - DB name:', data.student_name, 'Request name:', name, 'Match:', data.student_name === name);
       if (student.name !== name) {
         return res.status(409).json({ message: '이름이 일치하지 않습니다. 다시 확인해주세요.' });
       }
