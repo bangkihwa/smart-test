@@ -1,5 +1,6 @@
 {
   "version": 2,
+  "outputDirectory": "dist/public",
   "builds": [
     {
       "src": "api/index.ts",
@@ -20,11 +21,11 @@
     },
     {
       "src": "/assets/(.*)",
-      "dest": "/assets/$1"
+      "dest": "/dist/public/assets/$1"
     },
     {
       "src": "/(.*)",
-      "dest": "/index.html"
+      "dest": "/dist/public/index.html"
     }
   ]
 }
