@@ -292,6 +292,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const testsMap = new Map();
       (tests || []).forEach((t: any) => testsMap.set(t.id, mapTest(t)));
 
+      // Debug: log first result's student_id and check if it exists in map
+      if (results && results.length > 0) {
+        const firstResult = results[0];
+        console.log('First result student_id:', firstResult.student_id);
+        console.log('Map has this key:', studentsMapByUuid.has(firstResult.student_id));
+        console.log('Sample UUID from map:', Array.from(studentsMapByUuid.keys())[0]);
+      }
+
       const resultsWithRelations = (results || []).map((r: any) => ({
         ...mapTestResult(r),
         student: studentsMapByUuid.get(r.student_id) || null,
