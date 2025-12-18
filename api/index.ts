@@ -55,7 +55,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   const { url, method, body } = req;
-  const path = url?.replace('/api', '') || '/';
+  // Parse the path - handle both /api/xxx and /api?path=xxx formats
+  let path = url || '/';
+  // Remove query string first
+  path = path.split('?')[0];
+  // Remove /api prefix
+  path = path.replace(/^\/api/, '') || '/';
+
+  console.log('Request URL:', url, 'Parsed path:', path, 'Method:', method);
 
   try {
     // Students endpoints
