@@ -1,8 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createClient } from '@supabase/supabase-js';
-import { v5 as uuidv5 } from 'uuid';
-
-const STUDENT_UUID_NAMESPACE = '6ba7b810-9dad-11d1-80b4-00c04fd430c8';
 
 const supabaseUrl = process.env.SUPABASE_URL!;
 const supabaseKey = process.env.SUPABASE_ANON_KEY!;
@@ -254,9 +251,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       let queryBuilder = supabase.from('test_results').select('*');
 
       if (studentId) {
-        // Generate UUID from studentId for lookup
-        const studentUuid = uuidv5(studentId as string, STUDENT_UUID_NAMESPACE);
-        queryBuilder = queryBuilder.eq('student_id', studentUuid);
+        queryBuilder = queryBuilder.eq('student_id', studentId);
       }
       if (testId) {
         queryBuilder = queryBuilder.eq('test_id', testId);
@@ -284,11 +279,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const { data: students } = await supabase.from('students').select('*');
       const { data: tests } = await supabase.from('tests').select('*');
 
-      // Map students by their UUID (generated from student_id)
-      const studentsMapByUuid = new Map();
+      // Map students by their studentId (e.g., 'h01001')
+      const studentsMap = new Map();
       (students || []).forEach((s: any) => {
-        const studentUuid = uuidv5(s.student_id, STUDENT_UUID_NAMESPACE);
-        studentsMapByUuid.set(studentUuid, mapStudent(s));
+        studentsMap.set(s.student_id, mapStudent(s));
       });
 
       const testsMap = new Map();
@@ -296,7 +290,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       const resultsWithRelations = (results || []).map((r: any) => ({
         ...mapTestResult(r),
-        student: studentsMapByUuid.get(r.student_id) || null,
+        student: studentsMap.get(r.student_id) || null,
         test: testsMap.get(r.test_id) || null,
       }));
 
@@ -306,13 +300,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (path.match(/^\/test-results\/student\/(.+)$/) && method === 'GET') {
       const studentId = path.split('/').pop();
 
-      // Generate UUID from studentId for lookup
-      const studentUuid = uuidv5(studentId as string, STUDENT_UUID_NAMESPACE);
-
       const { data, error } = await supabase
         .from('test_results')
         .select('*')
-        .eq('student_id', studentUuid)
+        .eq('student_id', studentId)
         .order('completed_at', { ascending: false });
 
       if (error) throw error;
@@ -428,13 +419,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
 
       const finalScore = Math.round((totalScore / totalQuestions) * 100);
-      // Generate UUID from studentId for storage
-      const studentUuid = uuidv5(studentId, STUDENT_UUID_NAMESPACE);
 
       const { data, error } = await supabase
         .from('test_results')
         .insert({
-          student_id: studentUuid,
+          student_id: studentId,
           test_id: test.id,
           answers,
           score: finalScore,
@@ -446,51 +435,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       if (error) throw error;
       return res.status(201).json(mapTestResult(data));
-    }
-
-    // Migration endpoint to fix existing test_results student_id
-    if (path === '/migrate-student-ids' && method === 'POST') {
-      // Get all students to build UUID -> DB id mapping
-      const { data: students } = await supabase.from('students').select('*');
-
-      // Create a map: generated UUID -> actual DB id
-      const uuidToDbId = new Map();
-      (students || []).forEach((s: any) => {
-        const generatedUuid = uuidv5(s.student_id, STUDENT_UUID_NAMESPACE);
-        uuidToDbId.set(generatedUuid, s.id);
-      });
-
-      // Get all test results
-      const { data: results } = await supabase.from('test_results').select('*');
-
-      let updatedCount = 0;
-      const errors: string[] = [];
-
-      for (const result of results || []) {
-        const oldStudentId = result.student_id;
-        const newStudentId = uuidToDbId.get(oldStudentId);
-
-        if (newStudentId && newStudentId !== oldStudentId) {
-          const { error } = await supabase
-            .from('test_results')
-            .update({ student_id: newStudentId })
-            .eq('id', result.id);
-
-          if (error) {
-            errors.push(`Failed to update ${result.id}: ${error.message}`);
-          } else {
-            updatedCount++;
-          }
-        }
-      }
-
-      return res.json({
-        message: 'Migration completed',
-        totalResults: results?.length || 0,
-        updatedCount,
-        errors,
-        sampleMapping: Array.from(uuidToDbId.entries()).slice(0, 3)
-      });
     }
 
     return res.status(404).json({ message: 'Not found' });
