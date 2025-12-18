@@ -1,8 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createClient } from '@supabase/supabase-js';
-import { v5 as uuidv5 } from 'uuid';
-
-const STUDENT_UUID_NAMESPACE = '6ba7b810-9dad-11d1-80b4-00c04fd430c8';
 
 const supabaseUrl = process.env.SUPABASE_URL!;
 const supabaseKey = process.env.SUPABASE_ANON_KEY!;
@@ -254,8 +251,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       let queryBuilder = supabase.from('test_results').select('*');
 
       if (studentId) {
-        const studentUuid = uuidv5(studentId as string, STUDENT_UUID_NAMESPACE);
-        queryBuilder = queryBuilder.eq('student_id', studentUuid);
+        // First get the student's DB id from their student_id
+        const { data: studentData } = await supabase
+          .from('students')
+          .select('id')
+          .eq('student_id', studentId)
+          .single();
+        if (studentData) {
+          queryBuilder = queryBuilder.eq('student_id', studentData.id);
+        }
       }
       if (testId) {
         queryBuilder = queryBuilder.eq('test_id', testId);
@@ -283,26 +287,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const { data: students } = await supabase.from('students').select('*');
       const { data: tests } = await supabase.from('tests').select('*');
 
-      const studentsMapByUuid = new Map();
+      // Map students by their DB id (not by generated UUID)
+      const studentsMapById = new Map();
       (students || []).forEach((s: any) => {
-        const studentUuid = uuidv5(s.student_id, STUDENT_UUID_NAMESPACE);
-        studentsMapByUuid.set(studentUuid, mapStudent(s));
+        studentsMapById.set(s.id, mapStudent(s));
       });
 
       const testsMap = new Map();
       (tests || []).forEach((t: any) => testsMap.set(t.id, mapTest(t)));
 
-      // Debug: log first result's student_id and check if it exists in map
-      if (results && results.length > 0) {
-        const firstResult = results[0];
-        console.log('First result student_id:', firstResult.student_id);
-        console.log('Map has this key:', studentsMapByUuid.has(firstResult.student_id));
-        console.log('Sample UUID from map:', Array.from(studentsMapByUuid.keys())[0]);
-      }
-
       const resultsWithRelations = (results || []).map((r: any) => ({
         ...mapTestResult(r),
-        student: studentsMapByUuid.get(r.student_id) || null,
+        student: studentsMapById.get(r.student_id) || null,
         test: testsMap.get(r.test_id) || null,
       }));
 
@@ -311,12 +307,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (path.match(/^\/test-results\/student\/(.+)$/) && method === 'GET') {
       const studentId = path.split('/').pop();
-      const studentUuid = uuidv5(studentId!, STUDENT_UUID_NAMESPACE);
+
+      // Get the student's DB id from their student_id
+      const { data: studentData } = await supabase
+        .from('students')
+        .select('id')
+        .eq('student_id', studentId)
+        .single();
+
+      if (!studentData) {
+        return res.json([]);
+      }
 
       const { data, error } = await supabase
         .from('test_results')
         .select('*')
-        .eq('student_id', studentUuid)
+        .eq('student_id', studentData.id)
         .order('completed_at', { ascending: false });
 
       if (error) throw error;
@@ -432,12 +438,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
 
       const finalScore = Math.round((totalScore / totalQuestions) * 100);
-      const studentUuid = uuidv5(studentId, STUDENT_UUID_NAMESPACE);
+      // Use the actual student's DB id, not a generated UUID
+      const studentDbId = studentData.id;
 
       const { data, error } = await supabase
         .from('test_results')
         .insert({
-          student_id: studentUuid,
+          student_id: studentDbId,
           test_id: test.id,
           answers,
           score: finalScore,
