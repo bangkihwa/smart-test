@@ -1,5 +1,8 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createClient } from '@supabase/supabase-js';
+import { v5 as uuidv5 } from 'uuid';
+
+const STUDENT_UUID_NAMESPACE = '6ba7b810-9dad-11d1-80b4-00c04fd430c8';
 
 const supabaseUrl = process.env.SUPABASE_URL!;
 const supabaseKey = process.env.SUPABASE_ANON_KEY!;
@@ -456,6 +459,51 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       if (error) throw error;
       return res.status(201).json(mapTestResult(data));
+    }
+
+    // Migration endpoint to fix existing test_results student_id
+    if (path === '/migrate-student-ids' && method === 'POST') {
+      // Get all students to build UUID -> DB id mapping
+      const { data: students } = await supabase.from('students').select('*');
+
+      // Create a map: generated UUID -> actual DB id
+      const uuidToDbId = new Map();
+      (students || []).forEach((s: any) => {
+        const generatedUuid = uuidv5(s.student_id, STUDENT_UUID_NAMESPACE);
+        uuidToDbId.set(generatedUuid, s.id);
+      });
+
+      // Get all test results
+      const { data: results } = await supabase.from('test_results').select('*');
+
+      let updatedCount = 0;
+      const errors: string[] = [];
+
+      for (const result of results || []) {
+        const oldStudentId = result.student_id;
+        const newStudentId = uuidToDbId.get(oldStudentId);
+
+        if (newStudentId && newStudentId !== oldStudentId) {
+          const { error } = await supabase
+            .from('test_results')
+            .update({ student_id: newStudentId })
+            .eq('id', result.id);
+
+          if (error) {
+            errors.push(`Failed to update ${result.id}: ${error.message}`);
+          } else {
+            updatedCount++;
+          }
+        }
+      }
+
+      return res.json({
+        message: 'Migration completed',
+        totalResults: results?.length || 0,
+        updatedCount,
+        errors,
+        sampleMapping: Array.from(uuidToDbId.entries()).slice(0, 3)
+      });
     }
 
     return res.status(404).json({ message: 'Not found' });
