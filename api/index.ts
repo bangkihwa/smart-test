@@ -95,7 +95,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     if (path === '/students/login' && method === 'POST') {
-      const { studentId, name, grade } = body;
+      console.log('Raw body type:', typeof body, 'Raw body:', body);
+      const { studentId, name, grade } = body || {};
 
       const { data, error } = await supabase
         .from('students')
@@ -108,8 +109,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
 
       const student = mapStudent(data);
-      console.log('Login attempt - DB name:', data.student_name, 'Request name:', name, 'Match:', data.student_name === name);
-      if (student.name !== name) {
+      const dbName = (data.student_name || '').trim();
+      const reqName = (name || '').trim();
+      console.log('Login attempt - DB name:', JSON.stringify(dbName), 'Request name:', JSON.stringify(reqName), 'Match:', dbName === reqName);
+      if (dbName !== reqName) {
         return res.status(409).json({ message: '이름이 일치하지 않습니다. 다시 확인해주세요.' });
       }
 
