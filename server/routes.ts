@@ -235,7 +235,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!result) {
         return res.status(404).json({ message: "Test result not found" });
       }
-      res.json(result);
+
+      // Get test details
+      const test = await storage.getTest(result.testId);
+
+      // Return result with test info
+      res.json({
+        ...result,
+        test: test || null,
+      });
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch test result" });
     }
@@ -327,7 +335,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const finalScore = Math.round((totalScore / totalQuestions) * 100);
 
       const resultData = {
-        studentId: student.id,
+        studentId: student.studentId,
         testId: test.id,
         answers,
         score: finalScore,

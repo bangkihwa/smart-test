@@ -1,234 +1,443 @@
 import { useQuery } from "@tanstack/react-query";
 import { useRoute } from "wouter";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import type { TestResult, Student, Test } from "@/lib/types";
+import { Progress } from "@/components/ui/progress";
+import type { TestResult, Test } from "@/lib/types";
+import { format } from "date-fns";
+import { ko } from "date-fns/locale";
+
+interface TestResultWithTest extends TestResult {
+  test?: Test;
+}
+
+// Circular Progress Component
+function CircularProgress({ value, size = 120, strokeWidth = 10, color = "#3b82f6" }: {
+  value: number;
+  size?: number;
+  strokeWidth?: number;
+  color?: string;
+}) {
+  const radius = (size - strokeWidth) / 2;
+  const circumference = radius * 2 * Math.PI;
+  const offset = circumference - (value / 100) * circumference;
+
+  return (
+    <div className="relative inline-flex items-center justify-center">
+      <svg width={size} height={size} className="transform -rotate-90">
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={strokeWidth}
+          className="text-gray-200 dark:text-gray-700"
+        />
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          fill="none"
+          stroke={color}
+          strokeWidth={strokeWidth}
+          strokeDasharray={circumference}
+          strokeDashoffset={offset}
+          strokeLinecap="round"
+          className="transition-all duration-1000 ease-out"
+        />
+      </svg>
+      <div className="absolute inset-0 flex items-center justify-center">
+        <span className="text-3xl font-bold">{value}</span>
+      </div>
+    </div>
+  );
+}
+
+// Donut Chart Component for Section Scores
+function DonutChart({ correct, total, size = 80 }: { correct: number; total: number; size?: number }) {
+  const percentage = (correct / total) * 100;
+  const radius = (size - 8) / 2;
+  const circumference = radius * 2 * Math.PI;
+  const offset = circumference - (percentage / 100) * circumference;
+
+  const getColor = () => {
+    if (percentage >= 80) return "#22c55e";
+    if (percentage >= 60) return "#f59e0b";
+    return "#ef4444";
+  };
+
+  return (
+    <div className="relative inline-flex items-center justify-center">
+      <svg width={size} height={size} className="transform -rotate-90">
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={8}
+          className="text-gray-100 dark:text-gray-800"
+        />
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          fill="none"
+          stroke={getColor()}
+          strokeWidth={8}
+          strokeDasharray={circumference}
+          strokeDashoffset={offset}
+          strokeLinecap="round"
+          className="transition-all duration-700 ease-out"
+        />
+      </svg>
+      <div className="absolute inset-0 flex flex-col items-center justify-center">
+        <span className="text-sm font-bold">{correct}</span>
+        <span className="text-[10px] text-muted-foreground">/{total}</span>
+      </div>
+    </div>
+  );
+}
 
 export default function TestResults() {
   const [match, params] = useRoute("/results/:resultId");
   const resultId = params?.resultId;
 
-  const { data: result, isLoading } = useQuery({
+  const { data: resultData, isLoading } = useQuery<TestResultWithTest>({
     queryKey: ['/api/test-results', resultId],
+    queryFn: async () => {
+      const response = await fetch(`/api/test-results/${resultId}`);
+      if (!response.ok) throw new Error('Failed to fetch result');
+      return response.json();
+    },
     enabled: !!resultId,
   });
 
-  const { data: student } = useQuery({
-    queryKey: ['/api/students', result?.studentId],
-    enabled: !!result?.studentId,
-  });
-
-  const { data: test } = useQuery({
-    queryKey: ['/api/tests', result?.testId],
-    enabled: !!result?.testId,
-  });
+  const result = resultData;
+  const test = resultData?.test;
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-      </div>
-    );
-  }
-
-  if (!result || !student || !test) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
         <div className="text-center">
-          <h2 className="text-2xl font-bold text-foreground mb-2">결과를 찾을 수 없습니다</h2>
-          <p className="text-muted-foreground">잘못된 링크이거나 결과가 삭제되었을 수 있습니다.</p>
+          <div className="animate-spin rounded-full h-16 w-16 border-4 border-primary border-t-transparent mx-auto mb-4"></div>
+          <p className="text-muted-foreground animate-pulse">결과를 불러오는 중...</p>
         </div>
       </div>
     );
   }
 
-  const getTaskBadgeVariant = (taskType: string) => {
+  if (!result || !test) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
+        <div className="text-center p-8">
+          <div className="w-20 h-20 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
+            <svg className="w-10 h-10 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+          </div>
+          <h2 className="text-2xl font-bold text-foreground mb-2">결과를 찾을 수 없습니다</h2>
+          <p className="text-muted-foreground mb-6">잘못된 링크이거나 결과가 삭제되었을 수 있습니다.</p>
+          <Button onClick={() => window.location.href = '/'}>
+            메인으로 돌아가기
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  const totalCorrect = result.sectionScores.reduce((sum, s) => sum + s.correct, 0);
+  const totalQuestions = result.sectionScores.reduce((sum, s) => sum + s.total, 0);
+  const totalWrong = totalQuestions - totalCorrect;
+
+  const getScoreColor = (score: number) => {
+    if (score >= 90) return "#22c55e";
+    if (score >= 70) return "#3b82f6";
+    if (score >= 50) return "#f59e0b";
+    return "#ef4444";
+  };
+
+  const getScoreMessage = (score: number) => {
+    if (score >= 90) return { emoji: "🎉", message: "훌륭해요!", sub: "완벽에 가까운 성적입니다!" };
+    if (score >= 70) return { emoji: "👍", message: "잘했어요!", sub: "조금만 더 노력하면 완벽해요!" };
+    if (score >= 50) return { emoji: "💪", message: "힘내세요!", sub: "복습하면 더 좋아질 거예요!" };
+    return { emoji: "📚", message: "열심히 해봐요!", sub: "기초부터 차근차근 복습해요!" };
+  };
+
+  const scoreInfo = getScoreMessage(result.score);
+
+  const getTaskBadgeColor = (taskType: string) => {
     switch (taskType) {
-      case 'light': return 'default';
-      case 'medium': return 'secondary';
-      case 'heavy': return 'destructive';
-      default: return 'default';
+      case 'light': return 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400';
+      case 'medium': return 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400';
+      case 'heavy': return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400';
+      default: return 'bg-gray-100 text-gray-700';
     }
   };
 
   const getTaskLabel = (taskType: string) => {
     switch (taskType) {
       case 'light': return '기본 과제';
-      case 'medium': return '중급 과제';
+      case 'medium': return '보충 과제';
       case 'heavy': return '심화 과제';
       default: return '과제';
     }
   };
 
+  const sectionColors = ['#3b82f6', '#8b5cf6', '#ec4899'];
+
   return (
-    <div className="min-h-screen bg-background pb-24">
-      {/* Header */}
-      <div className="bg-gradient-to-br from-primary to-primary/80 text-primary-foreground p-6">
-        <div className="text-center mb-4">
-          <div className="inline-flex items-center justify-center w-20 h-20 bg-white/20 rounded-full mb-4">
-            <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
-            </svg>
-          </div>
-          <h2 className="text-2xl font-bold mb-2">채점 완료!</h2>
-          <p className="text-primary-foreground/80">{test.name}</p>
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 pb-24">
+      {/* Animated Header */}
+      <div className="relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600"></div>
+        <div className="absolute inset-0 opacity-30">
+          <div className="absolute top-10 left-10 w-32 h-32 bg-white/20 rounded-full blur-3xl animate-pulse"></div>
+          <div className="absolute bottom-10 right-10 w-40 h-40 bg-white/20 rounded-full blur-3xl animate-pulse delay-700"></div>
         </div>
 
-        <div className="bg-white/10 rounded-lg p-6 backdrop-blur-sm">
-          <div className="text-center mb-4">
-            <div className="text-5xl font-bold mb-2" data-testid="total-score">{result.score}</div>
-            <div className="text-sm opacity-90">점</div>
+        <div className="relative px-6 py-8 text-white">
+          {/* Test Info */}
+          <div className="text-center mb-6">
+            <Badge className="bg-white/20 text-white border-white/30 mb-3">
+              {test.subject} · {test.grade}
+            </Badge>
+            <h1 className="text-2xl font-bold mb-1">{test.name}</h1>
+            <p className="text-white/70 text-sm">
+              {format(new Date(result.completedAt), 'yyyy년 M월 d일 HH:mm', { locale: ko })}
+            </p>
           </div>
-          <div className="flex items-center justify-center space-x-4 text-sm">
-            <div className="text-center">
-              <div className="font-semibold">{result.sectionScores.reduce((sum, section) => sum + section.correct, 0)}/30</div>
-              <div className="opacity-80">정답</div>
+
+          {/* Main Score Circle */}
+          <div className="flex flex-col items-center mb-6">
+            <div className="relative">
+              <CircularProgress
+                value={result.score}
+                size={160}
+                strokeWidth={12}
+                color={getScoreColor(result.score)}
+              />
+              <div className="absolute -bottom-2 left-1/2 transform -translate-x-1/2">
+                <span className="text-lg font-medium text-white/90">점</span>
+              </div>
             </div>
-            <div className="w-px h-8 bg-white/30"></div>
-            <div className="text-center">
-              <div className="font-semibold">{result.sectionScores.reduce((sum, section) => sum + section.wrongAnswers.length, 0)}</div>
-              <div className="opacity-80">오답</div>
+            <div className="text-center mt-4">
+              <p className="text-4xl mb-1">{scoreInfo.emoji}</p>
+              <p className="text-xl font-bold">{scoreInfo.message}</p>
+              <p className="text-white/70 text-sm">{scoreInfo.sub}</p>
+            </div>
+          </div>
+
+          {/* Quick Stats */}
+          <div className="grid grid-cols-3 gap-3">
+            <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 text-center">
+              <div className="text-2xl font-bold text-green-300">{totalCorrect}</div>
+              <div className="text-xs text-white/70">정답</div>
+            </div>
+            <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 text-center">
+              <div className="text-2xl font-bold text-red-300">{totalWrong}</div>
+              <div className="text-xs text-white/70">오답</div>
+            </div>
+            <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 text-center">
+              <div className="text-2xl font-bold text-yellow-300">{totalQuestions}</div>
+              <div className="text-xs text-white/70">총 문항</div>
             </div>
           </div>
         </div>
       </div>
 
-      <div className="p-4">
-        {/* Section Results */}
-        <div className="mb-6">
-          <h3 className="text-lg font-semibold text-foreground mb-4">파트별 결과</h3>
-          
-          <div className="space-y-3">
-            {result.sectionScores.map((sectionScore, index) => {
-              const section = test.sections.find(s => s.sectionNumber === sectionScore.sectionNumber);
-              const task = result.assignedTasks.find(t => t.sectionNumber === sectionScore.sectionNumber);
-              
-              if (!section || !task) return null;
+      <div className="px-4 py-6 space-y-6">
+        {/* Section Overview Chart */}
+        <Card className="overflow-hidden border-0 shadow-lg">
+          <CardContent className="p-6">
+            <h3 className="text-lg font-bold mb-4 flex items-center">
+              <span className="w-8 h-8 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center mr-3">
+                📊
+              </span>
+              파트별 성적 분석
+            </h3>
 
-              return (
-                <Card key={sectionScore.sectionNumber}>
-                  <CardContent className="p-4">
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="flex items-center space-x-3">
-                        <div className={`w-10 h-10 bg-${index === 0 ? 'primary' : index === 1 ? 'secondary' : 'accent'}/10 rounded-lg flex items-center justify-center`}>
-                          <svg className={`w-5 h-5 text-${index === 0 ? 'primary' : index === 1 ? 'secondary' : 'accent'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                          </svg>
-                        </div>
-                        <div>
-                          <h4 className="font-semibold text-foreground">{section.name}</h4>
-                          <p className="text-xs text-muted-foreground">{(sectionScore.sectionNumber - 1) * 10 + 1}-{sectionScore.sectionNumber * 10}번</p>
-                        </div>
+            <div className="flex justify-around items-end mb-6">
+              {result.sectionScores.map((sectionScore, index) => {
+                const section = test.sections.find(s => s.sectionNumber === sectionScore.sectionNumber);
+                const percentage = Math.round((sectionScore.correct / sectionScore.total) * 100);
+
+                return (
+                  <div key={sectionScore.sectionNumber} className="text-center">
+                    <DonutChart correct={sectionScore.correct} total={sectionScore.total} />
+                    <p className="text-sm font-medium mt-2" style={{ color: sectionColors[index] }}>
+                      {section?.name || `파트 ${sectionScore.sectionNumber}`}
+                    </p>
+                    <p className="text-xs text-muted-foreground">{percentage}%</p>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Progress Bars */}
+            <div className="space-y-4">
+              {result.sectionScores.map((sectionScore, index) => {
+                const section = test.sections.find(s => s.sectionNumber === sectionScore.sectionNumber);
+                const percentage = Math.round((sectionScore.correct / sectionScore.total) * 100);
+
+                return (
+                  <div key={sectionScore.sectionNumber}>
+                    <div className="flex justify-between items-center mb-1">
+                      <span className="text-sm font-medium">{section?.name || `파트 ${sectionScore.sectionNumber}`}</span>
+                      <span className="text-sm text-muted-foreground">{sectionScore.correct}/{sectionScore.total}</span>
+                    </div>
+                    <div className="relative h-3 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
+                      <div
+                        className="absolute inset-y-0 left-0 rounded-full transition-all duration-1000 ease-out"
+                        style={{
+                          width: `${percentage}%`,
+                          backgroundColor: sectionColors[index],
+                        }}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Detailed Section Results */}
+        <div className="space-y-4">
+          <h3 className="text-lg font-bold flex items-center px-2">
+            <span className="w-8 h-8 bg-purple-100 dark:bg-purple-900/30 rounded-lg flex items-center justify-center mr-3">
+              📝
+            </span>
+            상세 결과 및 과제
+          </h3>
+
+          {result.sectionScores.map((sectionScore, index) => {
+            const section = test.sections.find(s => s.sectionNumber === sectionScore.sectionNumber);
+            const task = result.assignedTasks.find(t => t.sectionNumber === sectionScore.sectionNumber);
+
+            if (!section || !task) return null;
+
+            return (
+              <Card key={sectionScore.sectionNumber} className="border-0 shadow-lg overflow-hidden">
+                <div
+                  className="h-1.5"
+                  style={{ backgroundColor: sectionColors[index] }}
+                />
+                <CardContent className="p-5">
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex items-center space-x-3">
+                      <div
+                        className="w-12 h-12 rounded-xl flex items-center justify-center text-white font-bold"
+                        style={{ backgroundColor: sectionColors[index] }}
+                      >
+                        {sectionScore.sectionNumber}
                       </div>
-                      <div className="text-right">
-                        <div className="text-lg font-bold text-foreground">{sectionScore.correct}/{sectionScore.total}</div>
-                        <div className="text-xs text-muted-foreground">{sectionScore.wrongAnswers.length}개 오답</div>
+                      <div>
+                        <h4 className="font-bold text-lg">{section.name}</h4>
+                        <p className="text-xs text-muted-foreground">
+                          {(sectionScore.sectionNumber - 1) * 10 + 1}번 ~ {sectionScore.sectionNumber * 10}번
+                        </p>
                       </div>
                     </div>
-                    
-                    {sectionScore.wrongAnswers.length > 0 && (
-                      <div className="mb-3">
-                        <div className="flex items-center space-x-1 text-xs mb-2">
-                          <span className="text-muted-foreground">오답:</span>
-                          {sectionScore.wrongAnswers.map(questionNum => (
-                            <Badge key={questionNum} variant="destructive" className="text-xs">
-                              {questionNum}번
-                            </Badge>
-                          ))}
-                        </div>
-                        <div className="bg-destructive/10 border border-destructive/20 rounded-md p-3 space-y-2">
-                          <p className="text-sm font-semibold text-destructive mb-2">틀린 문제 상세</p>
-                          {sectionScore.wrongAnswers.map(questionNum => {
-                            const studentAnswer = result.answers[questionNum - 1];
-                            const correctAnswer = test.sections
-                              .find(s => s.sectionNumber === sectionScore.sectionNumber)
-                              ?.answers[(questionNum - 1) % 10];
-                            return (
-                              <div key={questionNum} className="flex items-center justify-between text-sm bg-background/50 rounded p-2">
-                                <span className="font-medium">{questionNum}번</span>
-                                <div className="flex items-center space-x-4">
-                                  <div className="flex items-center space-x-1">
-                                    <span className="text-muted-foreground text-xs">내 답:</span>
-                                    <Badge variant="outline" className="bg-destructive/20 text-destructive border-destructive/30">
-                                      {studentAnswer}
-                                    </Badge>
-                                  </div>
-                                  <svg className="w-4 h-4 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
-                                  </svg>
-                                  <div className="flex items-center space-x-1">
-                                    <span className="text-muted-foreground text-xs">정답:</span>
-                                    <Badge variant="outline" className="bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 border-green-300 dark:border-green-700">
-                                      {correctAnswer}
-                                    </Badge>
-                                  </div>
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
+                    <div className="text-right">
+                      <div className="text-2xl font-bold" style={{ color: sectionColors[index] }}>
+                        {sectionScore.correct}/{sectionScore.total}
                       </div>
-                    )}
+                      <div className="text-xs text-muted-foreground">
+                        {Math.round((sectionScore.correct / sectionScore.total) * 100)}점
+                      </div>
+                    </div>
+                  </div>
 
-                    <div className="bg-accent/10 border border-accent/20 rounded-md p-3">
-                      <div className="flex items-center justify-between mb-1">
-                        <p className="text-sm font-medium text-accent">📚 {getTaskLabel(task.taskType)}</p>
-                        <Badge variant={getTaskBadgeVariant(task.taskType)} className="text-xs">
-                          {task.taskType === 'light' ? '0-2개 오답' : task.taskType === 'medium' ? '3-4개 오답' : '5개 이상 오답'}
+                  {/* Wrong Answers */}
+                  {sectionScore.wrongAnswers.length > 0 ? (
+                    <div className="mb-4">
+                      <div className="flex items-center gap-2 mb-3">
+                        <span className="text-sm font-medium text-red-500">❌ 틀린 문제</span>
+                        <Badge variant="destructive" className="text-xs">
+                          {sectionScore.wrongAnswers.length}개
                         </Badge>
                       </div>
-                      <p className="text-sm text-foreground">{task.task}</p>
+                      <div className="bg-red-50 dark:bg-red-900/20 rounded-xl p-4 space-y-2">
+                        {sectionScore.wrongAnswers.map(questionNum => {
+                          const studentAnswer = result.answers[questionNum - 1];
+                          const correctAnswer = section.answers[(questionNum - 1) % 10];
+                          return (
+                            <div
+                              key={questionNum}
+                              className="flex items-center justify-between bg-white dark:bg-gray-800 rounded-lg p-3 shadow-sm"
+                            >
+                              <div className="flex items-center space-x-3">
+                                <span className="w-8 h-8 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center text-sm font-bold text-red-600">
+                                  {questionNum}
+                                </span>
+                                <span className="text-sm text-muted-foreground">번 문제</span>
+                              </div>
+                              <div className="flex items-center space-x-2">
+                                <div className="flex items-center space-x-1 bg-red-100 dark:bg-red-900/30 px-3 py-1 rounded-full">
+                                  <span className="text-xs text-red-600 dark:text-red-400">내 답</span>
+                                  <span className="font-bold text-red-600 dark:text-red-400">{studentAnswer}</span>
+                                </div>
+                                <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
+                                </svg>
+                                <div className="flex items-center space-x-1 bg-green-100 dark:bg-green-900/30 px-3 py-1 rounded-full">
+                                  <span className="text-xs text-green-600 dark:text-green-400">정답</span>
+                                  <span className="font-bold text-green-600 dark:text-green-400">{correctAnswer}</span>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
                     </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
-        </div>
+                  ) : (
+                    <div className="mb-4 bg-green-50 dark:bg-green-900/20 rounded-xl p-4 flex items-center justify-center space-x-2">
+                      <span className="text-2xl">🎯</span>
+                      <span className="font-medium text-green-600 dark:text-green-400">모두 정답! 완벽해요!</span>
+                    </div>
+                  )}
 
-        {/* Core Content Feedback */}
-        <div className="mb-6">
-          <h3 className="text-lg font-semibold text-foreground mb-4">핵심 내용 피드백</h3>
-          
-          <div className="space-y-3">
-            {test.sections.map((section, index) => (
-              <Card key={section.sectionNumber}>
-                <CardContent className="p-4">
-                  <div className="flex items-start space-x-3">
-                    <svg className={`w-5 h-5 text-${index === 0 ? 'primary' : index === 1 ? 'secondary' : 'accent'} mt-1`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-                    </svg>
-                    <div className="flex-1">
-                      <h4 className="font-semibold text-foreground mb-2">{section.name}</h4>
-                      <p className="text-sm text-muted-foreground leading-relaxed">
-                        {section.coreContent}
-                      </p>
+                  {/* Assigned Task */}
+                  <div className={`rounded-xl p-4 ${getTaskBadgeColor(task.taskType).replace('text-', 'bg-').split(' ')[0]}`}>
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center space-x-2">
+                        <span className="text-lg">
+                          {task.taskType === 'light' ? '📗' : task.taskType === 'medium' ? '📙' : '📕'}
+                        </span>
+                        <span className={`font-bold ${getTaskBadgeColor(task.taskType).split(' ')[1]}`}>
+                          {getTaskLabel(task.taskType)}
+                        </span>
+                      </div>
+                      <Badge className={getTaskBadgeColor(task.taskType)}>
+                        {task.taskType === 'light' ? '0-2개 오답' : task.taskType === 'medium' ? '3-4개 오답' : '5개+ 오답'}
+                      </Badge>
                     </div>
+                    <p className="text-sm text-foreground leading-relaxed">{task.task}</p>
                   </div>
                 </CardContent>
               </Card>
-            ))}
-          </div>
+            );
+          })}
         </div>
 
         {/* Action Buttons */}
-        <div className="space-y-3">
-          <Button 
-            onClick={() => window.print()} 
-            className="w-full bg-primary text-primary-foreground font-semibold py-3"
-            data-testid="print-results-button"
+        <div className="space-y-3 pt-4">
+          <Button
+            onClick={() => window.print()}
+            className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold py-6 rounded-xl shadow-lg"
           >
             <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
             </svg>
             결과 출력하기
           </Button>
-          <Button 
+          <Button
             variant="outline"
             onClick={() => window.location.href = '/'}
-            className="w-full font-semibold py-3"
-            data-testid="back-to-home-button"
+            className="w-full font-semibold py-6 rounded-xl border-2"
           >
             <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />

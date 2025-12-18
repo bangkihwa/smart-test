@@ -259,17 +259,13 @@ export default function AdminDashboard() {
 
   const handleTestSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
-    // Validate basic fields
-    if (!testForm.testId || testForm.testId.trim() === '') {
-      toast({
-        variant: "destructive",
-        title: "입력 오류",
-        description: "테스트 ID를 입력해주세요.",
-      });
-      return;
+
+    // Auto-generate testId if not provided
+    let finalTestId = testForm.testId?.trim();
+    if (!finalTestId) {
+      finalTestId = `TEST_${Date.now()}`;
     }
-    
+
     if (!testForm.name || testForm.name.trim() === '') {
       toast({
         variant: "destructive",
@@ -347,13 +343,15 @@ export default function AdminDashboard() {
       }
     }
     
+    const submitData = { ...testForm, testId: finalTestId };
+
     if (editingTest) {
       updateTestMutation.mutate({
         id: editingTest.id,
-        testData: testForm,
+        testData: submitData,
       });
     } else {
-      createTestMutation.mutate(testForm);
+      createTestMutation.mutate(submitData);
     }
   };
 

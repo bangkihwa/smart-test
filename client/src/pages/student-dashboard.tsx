@@ -27,9 +27,9 @@ export default function StudentDashboard({ student, onStartTest, onLogout }: Stu
 
   // Fetch student's test results
   const { data: testResults, isLoading } = useQuery<TestResult[]>({
-    queryKey: ['/api/test-results', 'student', student.id],
+    queryKey: ['/api/test-results', 'student', student.studentId],
     queryFn: async () => {
-      const response = await fetch(`/api/test-results/student/${student.id}`);
+      const response = await fetch(`/api/test-results/student/${student.studentId}`);
       if (!response.ok) throw new Error('Failed to fetch results');
       return response.json();
     },

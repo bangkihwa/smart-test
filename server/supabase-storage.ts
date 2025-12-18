@@ -1,6 +1,10 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { v5 as uuidv5 } from 'uuid';
 import type { IStorage } from './storage';
 import type { Student, Test, TestResult, InsertStudent, InsertTest, InsertTestResult } from '@shared/schema';
+
+// Namespace UUID for generating deterministic UUIDs from student IDs
+const STUDENT_UUID_NAMESPACE = '6ba7b810-9dad-11d1-80b4-00c04fd430c8';
 
 export class SupabaseStorage implements IStorage {
   private supabase: SupabaseClient;
@@ -33,11 +37,22 @@ export class SupabaseStorage implements IStorage {
   }
 
   async createStudent(student: InsertStudent): Promise<Student> {
+    // Get next ID
+    const { data: maxIdData } = await this.supabase
+      .from('students')
+      .select('id')
+      .order('id', { ascending: false })
+      .limit(1)
+      .single();
+
+    const nextId = (maxIdData?.id || 0) + 1;
+
     const { data, error } = await this.supabase
       .from('students')
       .insert({
+        id: nextId,
         student_id: student.studentId,
-        name: student.name,
+        student_name: student.name,
         grade: student.grade,
       })
       .select()
@@ -50,7 +65,7 @@ export class SupabaseStorage implements IStorage {
   async updateStudent(id: string, student: Partial<InsertStudent>): Promise<Student> {
     const updateData: any = {};
     if (student.studentId !== undefined) updateData.student_id = student.studentId;
-    if (student.name !== undefined) updateData.name = student.name;
+    if (student.name !== undefined) updateData.student_name = student.name;
     if (student.grade !== undefined) updateData.grade = student.grade;
 
     const { data, error } = await this.supabase
@@ -77,7 +92,7 @@ export class SupabaseStorage implements IStorage {
     const { data, error } = await this.supabase
       .from('students')
       .select('*')
-      .order('created_at', { ascending: false });
+      .order('id', { ascending: true });
 
     if (error) throw new Error(`Failed to get students: ${error.message}`);
     return (data || []).map(this.mapStudent);
@@ -87,14 +102,14 @@ export class SupabaseStorage implements IStorage {
     let queryBuilder = this.supabase.from('students').select('*');
 
     if (query) {
-      queryBuilder = queryBuilder.or(`name.ilike.%${query}%,student_id.ilike.%${query}%`);
+      queryBuilder = queryBuilder.or(`student_name.ilike.%${query}%,student_id.ilike.%${query}%`);
     }
 
     if (grade) {
       queryBuilder = queryBuilder.eq('grade', grade);
     }
 
-    const { data, error } = await queryBuilder.order('created_at', { ascending: false });
+    const { data, error } = await queryBuilder.order('id', { ascending: true });
 
     if (error) throw new Error(`Failed to search students: ${error.message}`);
     return (data || []).map(this.mapStudent);
@@ -191,10 +206,13 @@ export class SupabaseStorage implements IStorage {
   }
 
   async createTestResult(result: InsertTestResult): Promise<TestResult> {
+    // Convert studentId string to deterministic UUID for storage
+    const studentUuid = uuidv5(result.studentId, STUDENT_UUID_NAMESPACE);
+
     const { data, error } = await this.supabase
       .from('test_results')
       .insert({
-        student_id: result.studentId,
+        student_id: studentUuid,
         test_id: result.testId,
         answers: result.answers,
         score: result.score,
@@ -209,10 +227,13 @@ export class SupabaseStorage implements IStorage {
   }
 
   async getTestResultsByStudent(studentId: string): Promise<TestResult[]> {
+    // Convert studentId string to deterministic UUID for lookup
+    const studentUuid = uuidv5(studentId, STUDENT_UUID_NAMESPACE);
+
     const { data, error } = await this.supabase
       .from('test_results')
       .select('*')
-      .eq('student_id', studentId)
+      .eq('student_id', studentUuid)
       .order('completed_at', { ascending: false });
 
     if (error) throw new Error(`Failed to get test results: ${error.message}`);
@@ -242,19 +263,23 @@ export class SupabaseStorage implements IStorage {
 
   async getAllTestResultsWithRelations(): Promise<any[]> {
     const results = await this.getAllTestResults();
-    const studentsMap = new Map<string, Student>();
+    const studentsMapByUuid = new Map<string, Student>();
     const testsMap = new Map<string, Test>();
 
     // Pre-fetch all students and tests
     const allStudents = await this.getAllStudents();
     const allTests = await this.getAllTests();
-    
-    allStudents.forEach(s => studentsMap.set(s.id, s));
+
+    // Map students by their UUID (generated from studentId)
+    allStudents.forEach(s => {
+      const studentUuid = uuidv5(s.studentId, STUDENT_UUID_NAMESPACE);
+      studentsMapByUuid.set(studentUuid, s);
+    });
     allTests.forEach(t => testsMap.set(t.id, t));
 
     return results.map(result => ({
       ...result,
-      student: studentsMap.get(result.studentId) || null,
+      student: studentsMapByUuid.get(result.studentId) || null,
       test: testsMap.get(result.testId) || null,
     }));
   }
@@ -268,7 +293,9 @@ export class SupabaseStorage implements IStorage {
     let queryBuilder = this.supabase.from('test_results').select('*');
 
     if (filters.studentId) {
-      queryBuilder = queryBuilder.eq('student_id', filters.studentId);
+      // Convert studentId string to deterministic UUID for lookup
+      const studentUuid = uuidv5(filters.studentId, STUDENT_UUID_NAMESPACE);
+      queryBuilder = queryBuilder.eq('student_id', studentUuid);
     }
 
     if (filters.testId) {
@@ -292,11 +319,11 @@ export class SupabaseStorage implements IStorage {
   // Helper methods to map Supabase snake_case to camelCase
   private mapStudent(data: any): Student {
     return {
-      id: data.id,
+      id: data.id?.toString() || data.id,
       studentId: data.student_id,
-      name: data.name,
+      name: data.student_name || data.name,
       grade: data.grade,
-      createdAt: new Date(data.created_at),
+      createdAt: new Date(data.created_at || Date.now()),
     };
   }
 
