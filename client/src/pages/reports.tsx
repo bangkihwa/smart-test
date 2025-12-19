@@ -6,16 +6,34 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Download, FileText, Calendar } from "lucide-react";
+import { Download, FileText, Search } from "lucide-react";
 import { Link } from "wouter";
 import type { Student, Test, TestResult } from "@shared/schema";
 import logoImg from "@assets/403e7f94-9ba8-4bcc-b0ee-9d85daaea925_1760051026579.jpg";
 
 export default function Reports() {
+  // 필터 입력값 (사용자가 선택하는 값)
   const [selectedTest, setSelectedTest] = useState<string>("all");
   const [selectedGrade, setSelectedGrade] = useState<string>("all");
   const [startDate, setStartDate] = useState<string>("");
   const [endDate, setEndDate] = useState<string>("");
+
+  // 실제 적용된 필터값 (검색 버튼 클릭 시 업데이트)
+  const [appliedFilters, setAppliedFilters] = useState({
+    test: "all",
+    grade: "all",
+    startDate: "",
+    endDate: "",
+  });
+
+  const handleSearch = () => {
+    setAppliedFilters({
+      test: selectedTest,
+      grade: selectedGrade,
+      startDate: startDate,
+      endDate: endDate,
+    });
+  };
 
   const { data: students } = useQuery<Student[]>({
     queryKey: ['/api/students'],
@@ -31,10 +49,10 @@ export default function Reports() {
 
   const filteredResults = allResults?.filter(result => {
     if (!result.student || !result.test) return false;
-    if (selectedTest && selectedTest !== 'all' && result.testId !== selectedTest) return false;
-    if (selectedGrade && selectedGrade !== 'all' && result.student.grade !== selectedGrade) return false;
-    if (startDate && new Date(result.completedAt) < new Date(startDate)) return false;
-    if (endDate && new Date(result.completedAt) > new Date(endDate)) return false;
+    if (appliedFilters.test && appliedFilters.test !== 'all' && result.testId !== appliedFilters.test) return false;
+    if (appliedFilters.grade && appliedFilters.grade !== 'all' && result.student.grade !== appliedFilters.grade) return false;
+    if (appliedFilters.startDate && new Date(result.completedAt) < new Date(appliedFilters.startDate)) return false;
+    if (appliedFilters.endDate && new Date(result.completedAt) > new Date(appliedFilters.endDate)) return false;
     return true;
   }) || [];
 
@@ -207,7 +225,11 @@ export default function Reports() {
             </div>
 
             <div className="flex gap-3 mt-4">
-              <Button onClick={exportToCSV} className="flex items-center gap-2" data-testid="export-csv-button">
+              <Button onClick={handleSearch} className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700" data-testid="search-button">
+                <Search className="h-4 w-4" />
+                검색하기
+              </Button>
+              <Button onClick={exportToCSV} variant="outline" className="flex items-center gap-2" data-testid="export-csv-button">
                 <Download className="h-4 w-4" />
                 CSV 다운로드
               </Button>
