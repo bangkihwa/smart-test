@@ -11,6 +11,33 @@ import { Link } from "wouter";
 import type { Student, Test, TestResult } from "@shared/schema";
 import logoImg from "@assets/403e7f94-9ba8-4bcc-b0ee-9d85daaea925_1760051026579.jpg";
 
+// 학년 매칭 함수: "고1" = "고등1학년", "중2" = "중등2학년" 등
+function matchGrade(studentGrade: string, filterGrade: string): boolean {
+  if (!studentGrade || !filterGrade) return false;
+
+  // 정확히 일치하면 true
+  if (studentGrade === filterGrade) return true;
+
+  // 축약형 <-> 전체형 매핑
+  const gradeMap: Record<string, string> = {
+    '중1': '중등1학년',
+    '중2': '중등2학년',
+    '중3': '중등3학년',
+    '고1': '고등1학년',
+    '고2': '고등2학년',
+    '고3': '고등3학년',
+  };
+
+  // studentGrade가 축약형인 경우
+  if (gradeMap[studentGrade] === filterGrade) return true;
+
+  // studentGrade가 전체형이고 filterGrade가 축약형인 경우
+  const reverseMap = Object.fromEntries(Object.entries(gradeMap).map(([k, v]) => [v, k]));
+  if (reverseMap[studentGrade] === filterGrade) return true;
+
+  return false;
+}
+
 export default function Reports() {
   // 필터 입력값 (사용자가 선택하는 값)
   const [selectedTest, setSelectedTest] = useState<string>("all");
@@ -50,7 +77,7 @@ export default function Reports() {
   const filteredResults = allResults?.filter(result => {
     if (!result.student || !result.test) return false;
     if (appliedFilters.test && appliedFilters.test !== 'all' && result.testId !== appliedFilters.test) return false;
-    if (appliedFilters.grade && appliedFilters.grade !== 'all' && result.student.grade !== appliedFilters.grade) return false;
+    if (appliedFilters.grade && appliedFilters.grade !== 'all' && !matchGrade(result.student.grade, appliedFilters.grade)) return false;
     if (appliedFilters.startDate && new Date(result.completedAt) < new Date(appliedFilters.startDate)) return false;
     if (appliedFilters.endDate && new Date(result.completedAt) > new Date(appliedFilters.endDate)) return false;
     return true;
