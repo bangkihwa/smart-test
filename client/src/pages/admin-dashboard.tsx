@@ -34,7 +34,7 @@ export default function AdminDashboard() {
   // Fetch data
   const { data: students } = useQuery<Student[]>({ queryKey: ['/api/students'] });
   const { data: tests } = useQuery<Test[]>({ queryKey: ['/api/tests'] });
-  const { data: testResults } = useQuery<TestResult[]>({ queryKey: ['/api/test-results'] });
+  const { data: testResults } = useQuery<(TestResult & { student: Student, test: Test })[]>({ queryKey: ['/api/test-results/all'] });
 
   // Student management
   const [studentForm, setStudentForm] = useState({
