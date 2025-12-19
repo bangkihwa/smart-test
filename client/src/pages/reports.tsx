@@ -30,6 +30,7 @@ export default function Reports() {
   });
 
   const filteredResults = allResults?.filter(result => {
+    if (!result.student || !result.test) return false;
     if (selectedTest && selectedTest !== 'all' && result.testId !== selectedTest) return false;
     if (selectedGrade && selectedGrade !== 'all' && result.student.grade !== selectedGrade) return false;
     if (startDate && new Date(result.completedAt) < new Date(startDate)) return false;
