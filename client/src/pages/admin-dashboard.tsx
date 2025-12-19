@@ -532,14 +532,11 @@ export default function AdminDashboard() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {testResults?.slice(0, 5).map((result: TestResult) => {
-                const student = students?.find((s: Student) => s.id === result.studentId);
-                const test = tests?.find((t: Test) => t.id === result.testId);
-                
+              {testResults?.slice(0, 5).map((result: any) => {
                 return (
                   <TableRow key={result.id}>
-                    <TableCell className="font-medium">{student?.name || '알 수 없음'}</TableCell>
-                    <TableCell>{test?.name || '알 수 없음'}</TableCell>
+                    <TableCell className="font-medium">{result.student?.name || '알 수 없음'}</TableCell>
+                    <TableCell>{result.test?.name || '알 수 없음'}</TableCell>
                     <TableCell>
                       <Badge variant={result.score >= 80 ? 'default' : result.score >= 60 ? 'secondary' : 'destructive'}>
                         {result.score}점
@@ -990,19 +987,17 @@ export default function AdminDashboard() {
             </TableHeader>
             <TableBody>
               {testResults?.map((result: TestResult) => {
-                const student = students?.find((s: Student) => s.id === result.studentId);
-                const test = tests?.find((t: Test) => t.id === result.testId);
-                const totalErrors = result.sectionScores.reduce((sum, section) => sum + section.wrongAnswers.length, 0);
-                const maxTaskType = result.assignedTasks.reduce((max, task) => 
-                  task.taskType === 'heavy' ? 'heavy' : 
-                  task.taskType === 'medium' && max !== 'heavy' ? 'medium' : 
+                const totalErrors = result.sectionScores.reduce((sum: number, section: any) => sum + section.wrongAnswers.length, 0);
+                const maxTaskType = result.assignedTasks.reduce((max: string, task: any) =>
+                  task.taskType === 'heavy' ? 'heavy' :
+                  task.taskType === 'medium' && max !== 'heavy' ? 'medium' :
                   max === '' ? 'light' : max, '');
-                
+
                 return (
                   <TableRow key={result.id}>
                     <TableCell>{new Date(result.completedAt).toLocaleDateString()}</TableCell>
-                    <TableCell className="font-medium">{student?.name || '알 수 없음'}</TableCell>
-                    <TableCell>{test?.name || '알 수 없음'}</TableCell>
+                    <TableCell className="font-medium">{result.student?.name || '알 수 없음'}</TableCell>
+                    <TableCell>{result.test?.name || '알 수 없음'}</TableCell>
                     <TableCell>
                       <Badge variant={result.score >= 80 ? 'default' : result.score >= 60 ? 'secondary' : 'destructive'}>
                         {result.score}점
