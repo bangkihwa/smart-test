@@ -15,15 +15,27 @@ import logoImg from "@assets/403e7f94-9ba8-4bcc-b0ee-9d85daaea925_1760051026579.
 
 type ViewState = 'login' | 'dashboard' | 'test-selection' | 'omr-input' | 'loading';
 
+// 학년 형식을 정규화하여 비교 (예: "고1", "고등1학년" -> "고1")
+function normalizeGrade(grade: string | null | undefined): string {
+  if (!grade) return '';
+  // "고등1학년" -> "고1", "중등2학년" -> "중2" 등으로 변환
+  const match = grade.match(/(고등?|중등?)(\d)/);
+  if (match) {
+    const level = match[1].startsWith('고') ? '고' : '중';
+    return `${level}${match[2]}`;
+  }
+  return grade;
+}
+
 export default function StudentTest() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const [viewState, setViewState] = useState<ViewState>('login');
   const [studentId, setStudentId] = useState('');
   const [studentName, setStudentName] = useState('');
-  const [studentGrade, setStudentGrade] = useState('');
   const [selectedTest, setSelectedTest] = useState<Test | null>(null);
   const [student, setStudent] = useState<Student | null>(null);
+  const [selectedGradeFilter, setSelectedGradeFilter] = useState<string>('all');
 
   // Check localStorage for existing student session on mount
   useEffect(() => {
@@ -48,11 +60,10 @@ export default function StudentTest() {
 
   // Student login mutation
   const loginMutation = useMutation({
-    mutationFn: async ({ studentId, name, grade }: { studentId: string, name: string, grade: string }) => {
+    mutationFn: async ({ studentId, name }: { studentId: string, name: string }) => {
       const response = await apiRequest('POST', '/api/students/login', {
         studentId,
         name,
-        grade,
       });
       return await response.json();
     },
@@ -145,20 +156,11 @@ export default function StudentTest() {
       });
       return;
     }
-    if (!studentGrade) {
-      toast({
-        variant: "destructive",
-        title: "입력 오류",
-        description: "학년을 선택해주세요.",
-      });
-      return;
-    }
-    
-    // Login via API (will create student if doesn't exist)
+
+    // Login via API - only studentId and name required
     loginMutation.mutate({
       studentId: studentId.trim(),
       name: studentName.trim(),
-      grade: studentGrade,
     });
   };
 
@@ -304,23 +306,6 @@ export default function StudentTest() {
                   />
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-2">학년</label>
-                  <Select value={studentGrade} onValueChange={setStudentGrade}>
-                    <SelectTrigger data-testid="student-grade-select">
-                      <SelectValue placeholder="학년 선택" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="중등1학년">중등1학년</SelectItem>
-                      <SelectItem value="중등2학년">중등2학년</SelectItem>
-                      <SelectItem value="중등3학년">중등3학년</SelectItem>
-                      <SelectItem value="고등1학년">고등1학년</SelectItem>
-                      <SelectItem value="고등2학년">고등2학년</SelectItem>
-                      <SelectItem value="고등3학년">고등3학년</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
                 <Button
                   onClick={handleLogin}
                   className="w-full bg-primary text-primary-foreground font-medium py-3"
@@ -353,6 +338,25 @@ export default function StudentTest() {
               <p className="text-muted-foreground">풀이한 단원을 선택하고 답을 입력하세요</p>
             </div>
 
+            {/* 학년 필터 */}
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-foreground mb-2">학년 선택</label>
+              <Select value={selectedGradeFilter} onValueChange={setSelectedGradeFilter}>
+                <SelectTrigger className="w-full" data-testid="grade-filter-select">
+                  <SelectValue placeholder="학년을 선택하세요" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">모든 학년</SelectItem>
+                  <SelectItem value="중1">중등1학년</SelectItem>
+                  <SelectItem value="중2">중등2학년</SelectItem>
+                  <SelectItem value="중3">중등3학년</SelectItem>
+                  <SelectItem value="고1">고등1학년</SelectItem>
+                  <SelectItem value="고2">고등2학년</SelectItem>
+                  <SelectItem value="고3">고등3학년</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
             {testsLoading ? (
               <div className="space-y-3">
                 {[1, 2, 3].map(i => (
@@ -365,7 +369,14 @@ export default function StudentTest() {
               </div>
             ) : (
               <div className="space-y-3">
-                {tests?.filter(test => !test.grade || test.grade === student?.grade).map((test: Test) => (
+                {tests?.filter(test => {
+                  // 학년 필터가 'all'이면 모든 테스트 표시
+                  if (selectedGradeFilter === 'all') return true;
+                  // 테스트에 학년이 없으면 모든 필터에서 표시
+                  if (!test.grade) return true;
+                  // 선택된 학년과 테스트 학년이 일치하는지 확인
+                  return normalizeGrade(test.grade) === selectedGradeFilter;
+                }).map((test: Test) => (
                   <Card 
                     key={test.id} 
                     className="cursor-pointer hover:shadow-lg transition-shadow"

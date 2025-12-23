@@ -46,44 +46,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/students/login", async (req, res) => {
     try {
-      // Validate input with Zod schema
+      // Validate input with Zod schema - grade is now optional
       const loginSchema = z.object({
         studentId: z.string().trim().min(1, "Student ID is required"),
         name: z.string().trim().min(1, "Name is required"),
-        grade: z.enum([
-          "중등1학년",
-          "중등2학년",
-          "중등3학년",
-          "고등1학년",
-          "고등2학년",
-          "고등3학년"
-        ], { required_error: "Valid grade is required" }),
       });
-      
+
       const validated = loginSchema.parse(req.body);
-      
+
       // Check if student exists (must be pre-registered by admin)
       let student = await storage.getStudentByStudentId(validated.studentId);
-      
+
       if (!student) {
         // Student not found - must be registered by admin first
-        return res.status(404).json({ 
+        return res.status(404).json({
           message: "등록되지 않은 학생입니다. 관리자에게 문의하세요.",
         });
       }
-      
-      // Check if name matches (grade doesn't need to match)
+
+      // Check if name matches
       if (student.name !== validated.name) {
-        return res.status(409).json({ 
+        return res.status(409).json({
           message: "이름이 일치하지 않습니다. 다시 확인해주세요.",
         });
       }
-      
-      // Return student with the selected grade for test filtering (don't update DB)
-      res.json({
-        ...student,
-        grade: validated.grade,
-      });
+
+      // Return student with the grade from database
+      res.json(student);
     } catch (error) {
       if (error instanceof z.ZodError) {
         return res.status(400).json({ 
