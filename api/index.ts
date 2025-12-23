@@ -1,5 +1,9 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createClient } from '@supabase/supabase-js';
+import { v5 as uuidv5 } from 'uuid';
+
+// Namespace UUID for generating deterministic UUIDs from student IDs
+const STUDENT_UUID_NAMESPACE = '6ba7b810-9dad-11d1-80b4-00c04fd430c8';
 
 const supabaseUrl = process.env.SUPABASE_URL!;
 const supabaseKey = process.env.SUPABASE_ANON_KEY!;
@@ -106,14 +110,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
 
       const student = mapStudent(data);
-      const dbName = (data.student_name || '').trim();
+      const dbName = (data.student_name || data.name || '').trim();
       const reqName = (name || '').trim();
-      console.log('Login attempt - DB name:', JSON.stringify(dbName), 'Request name:', JSON.stringify(reqName), 'Match:', dbName === reqName);
       if (dbName !== reqName) {
         return res.status(409).json({ message: '이름이 일치하지 않습니다. 다시 확인해주세요.' });
       }
 
-      return res.json({ ...student, grade });
+      // 학생의 실제 학년 정보 반환 (DB에 있는 학년 사용)
+      return res.json(student);
     }
 
     if (path === '/students' && method === 'POST') {
@@ -298,12 +302,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     if (path.match(/^\/test-results\/student\/(.+)$/) && method === 'GET') {
-      const studentId = path.split('/').pop();
+      const studentIdParam = path.split('/').pop();
 
+      // Generate deterministic UUID from studentId (same as supabase-storage.ts)
+      const studentUuid = uuidv5(studentIdParam!, STUDENT_UUID_NAMESPACE);
+
+      // Query test_results with generated UUID
       const { data, error } = await supabase
         .from('test_results')
         .select('*')
-        .eq('student_id', studentId)
+        .eq('student_id', studentUuid)
         .order('completed_at', { ascending: false });
 
       if (error) throw error;
@@ -420,10 +428,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       const finalScore = Math.round((totalScore / totalQuestions) * 100);
 
+      // Generate deterministic UUID from studentId (same as supabase-storage.ts)
+      const studentUuid = uuidv5(studentId, STUDENT_UUID_NAMESPACE);
+
       const { data, error } = await supabase
         .from('test_results')
         .insert({
-          student_id: studentId,
+          student_id: studentUuid,  // 학생의 UUID 사용 (uuidv5로 생성)
           test_id: test.id,
           answers,
           score: finalScore,

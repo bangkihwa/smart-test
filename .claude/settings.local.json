@@ -1,0 +1,23 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install:*)",
+      "Bash(set NODE_ENV=development)",
+      "Bash(npx tsx:*)",
+      "Bash(netstat:*)",
+      "Bash(findstr:*)",
+      "Bash(taskkill:*)",
+      "Bash(cmd /c \"taskkill /PID 28620 /F\")",
+      "Bash(cmd /c \"for /f \"\"tokens=5\"\" %a in (''netstat -aon ^| findstr :5000 ^| findstr LISTENING'') do taskkill /F /PID %a\")",
+      "Bash(curl:*)",
+      "Bash(jq:*)",
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$(cat <<''EOF''\n기능 개선: 로그인, 리포트 UI, 테스트 필터\n\n- 로그인 시 학년 입력 제거 (ID, 이름만으로 로그인)\n- 학생 리포트 UI 전면 개편 (도넛차트, 레이더차트, 점수추이)\n- 리포트에 실제 단원 이름 표시 (섹션 번호 대신)\n- 테스트 선택 시 학년 필터 추가\n- 추가 과제 최근 2주 이내만 표시\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n)\")",
+      "Bash(git push:*)",
+      "Bash(npx vercel --version)",
+      "Bash(npx vercel --prod --yes)",
+      "Bash(npx vercel login)",
+      "Bash(npx vercel:*)"
+    ]
+  }
+}
