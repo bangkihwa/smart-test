@@ -22,7 +22,10 @@
       "Bash(npm run dev:*)",
       "Bash(cmd /c \"taskkill /PID 38364 /F\")",
       "Bash(tasklist:*)",
-      "Bash(powershell -Command:*)"
+      "Bash(powershell -Command:*)",
+      "Bash(node -e:*)",
+      "Bash(timeout:*)",
+      "Bash(ping:*)"
     ]
   }
 }

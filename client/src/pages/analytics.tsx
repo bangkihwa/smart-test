@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
-import { TrendingUp, TrendingDown, User, Award, AlertCircle } from "lucide-react";
+import { TrendingUp, TrendingDown, User, Award, AlertCircle, Search } from "lucide-react";
 import { Link } from "wouter";
 import type { Student, TestResult, Test } from "@shared/schema";
 import logoImg from "@assets/403e7f94-9ba8-4bcc-b0ee-9d85daaea925_1760051026579.jpg";
@@ -12,6 +13,7 @@ import logoImg from "@assets/403e7f94-9ba8-4bcc-b0ee-9d85daaea925_1760051026579.
 export default function Analytics() {
   const [selectedStudent, setSelectedStudent] = useState<string>("");
   const [selectedGrade, setSelectedGrade] = useState<string>("");
+  const [studentSearchQuery, setStudentSearchQuery] = useState<string>("");
 
   const { data: students } = useQuery<Student[]>({
     queryKey: ['/api/students'],
@@ -21,9 +23,20 @@ export default function Analytics() {
     queryKey: ['/api/test-results/all'],
   });
 
+  // Filter students by search query
+  const filteredStudents = useMemo(() => {
+    if (!students) return [];
+    if (!studentSearchQuery.trim()) return students;
+    const query = studentSearchQuery.toLowerCase();
+    return students.filter(s =>
+      s.name.toLowerCase().includes(query) ||
+      s.studentId.toLowerCase().includes(query)
+    );
+  }, [students, studentSearchQuery]);
+
   const filteredResults = allResults?.filter(result => {
     if (selectedStudent && selectedStudent !== 'all' && result.studentId !== selectedStudent) return false;
-    if (selectedGrade && selectedGrade !== 'all' && result.student.grade !== selectedGrade) return false;
+    if (selectedGrade && selectedGrade !== 'all' && result.student?.grade !== selectedGrade) return false;
     return true;
   }) || [];
 
@@ -113,15 +126,26 @@ export default function Analytics() {
           </Link>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <Input
+              placeholder="학생 이름 또는 ID 검색..."
+              value={studentSearchQuery}
+              onChange={(e) => setStudentSearchQuery(e.target.value)}
+              className="pl-10"
+              data-testid="student-search-input"
+            />
+          </div>
+
           <Select value={selectedStudent} onValueChange={setSelectedStudent}>
             <SelectTrigger data-testid="select-student-filter">
               <SelectValue placeholder="모든 학생" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">모든 학생</SelectItem>
-              {students?.map((student) => (
-                <SelectItem key={student.id} value={student.id}>
+              {filteredStudents.map((student) => (
+                <SelectItem key={student.id} value={student.studentId}>
                   {student.name} ({student.studentId})
                 </SelectItem>
               ))}

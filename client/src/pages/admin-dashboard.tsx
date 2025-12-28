@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { BarChart3, TrendingUp } from "lucide-react";
+import { BarChart3, TrendingUp, Search } from "lucide-react";
 import { Link } from "wouter";
 import Navigation from "@/components/navigation";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -30,6 +30,7 @@ export default function AdminDashboard() {
   const [selectedStudentId, setSelectedStudentId] = useState<string>('');
   const [startDate, setStartDate] = useState<string>('');
   const [endDate, setEndDate] = useState<string>('');
+  const [analysisStudentSearch, setAnalysisStudentSearch] = useState<string>('');
 
   // Fetch data
   const { data: students } = useQuery<Student[]>({ queryKey: ['/api/students'] });
@@ -1037,6 +1038,13 @@ export default function AdminDashboard() {
   );
 
   const renderAnalysis = () => {
+    // Filter students by search query for analysis
+    const analysisFilteredStudents = students?.filter((s: Student) => {
+      if (!analysisStudentSearch.trim()) return true;
+      const query = analysisStudentSearch.toLowerCase();
+      return s.name.toLowerCase().includes(query) || s.studentId.toLowerCase().includes(query);
+    }) || [];
+
     // Filter test results by selected student and date range
     const filteredResults = testResults?.filter((result: TestResult) => {
       if (!selectedStudentId) return false;
@@ -1100,7 +1108,20 @@ export default function AdminDashboard() {
             <CardTitle>필터 설정</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div>
+                <label className="block text-sm font-medium mb-2">학생 검색</label>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <Input
+                    placeholder="이름 또는 ID 검색..."
+                    value={analysisStudentSearch}
+                    onChange={(e) => setAnalysisStudentSearch(e.target.value)}
+                    className="pl-10"
+                    data-testid="analysis-student-search"
+                  />
+                </div>
+              </div>
               <div>
                 <label className="block text-sm font-medium mb-2">학생 선택</label>
                 <Select value={selectedStudentId} onValueChange={setSelectedStudentId}>
@@ -1108,8 +1129,8 @@ export default function AdminDashboard() {
                     <SelectValue placeholder="학생을 선택하세요" />
                   </SelectTrigger>
                   <SelectContent>
-                    {students?.map((student: Student) => (
-                      <SelectItem key={student.id} value={student.id}>
+                    {analysisFilteredStudents.map((student: Student) => (
+                      <SelectItem key={student.id} value={student.studentId}>
                         {student.name} ({student.grade})
                       </SelectItem>
                     ))}

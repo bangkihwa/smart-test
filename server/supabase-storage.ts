@@ -1,10 +1,6 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { v5 as uuidv5 } from 'uuid';
 import type { IStorage } from './storage';
 import type { Student, Test, TestResult, InsertStudent, InsertTest, InsertTestResult } from '@shared/schema';
-
-// Namespace UUID for generating deterministic UUIDs from student IDs
-const STUDENT_UUID_NAMESPACE = '6ba7b810-9dad-11d1-80b4-00c04fd430c8';
 
 export class SupabaseStorage implements IStorage {
   private supabase: SupabaseClient;
@@ -208,13 +204,10 @@ export class SupabaseStorage implements IStorage {
   }
 
   async createTestResult(result: InsertTestResult): Promise<TestResult> {
-    // Convert studentId string to deterministic UUID for storage
-    const studentUuid = uuidv5(result.studentId, STUDENT_UUID_NAMESPACE);
-
     const { data, error } = await this.supabase
       .from('test_results')
       .insert({
-        student_id: studentUuid,
+        student_id: result.studentId,
         test_id: result.testId,
         answers: result.answers,
         score: result.score,
@@ -229,13 +222,10 @@ export class SupabaseStorage implements IStorage {
   }
 
   async getTestResultsByStudent(studentId: string): Promise<TestResult[]> {
-    // Convert studentId string to deterministic UUID for lookup
-    const studentUuid = uuidv5(studentId, STUDENT_UUID_NAMESPACE);
-
     const { data, error } = await this.supabase
       .from('test_results')
       .select('*')
-      .eq('student_id', studentUuid)
+      .eq('student_id', studentId)
       .order('completed_at', { ascending: false });
 
     if (error) throw new Error(`Failed to get test results: ${error.message}`);
@@ -265,23 +255,22 @@ export class SupabaseStorage implements IStorage {
 
   async getAllTestResultsWithRelations(): Promise<any[]> {
     const results = await this.getAllTestResults();
-    const studentsMapByUuid = new Map<string, Student>();
+    const studentsMapByStudentId = new Map<string, Student>();
     const testsMap = new Map<string, Test>();
 
     // Pre-fetch all students and tests
     const allStudents = await this.getAllStudents();
     const allTests = await this.getAllTests();
 
-    // Map students by their UUID (generated from studentId)
+    // Map students by their studentId
     allStudents.forEach(s => {
-      const studentUuid = uuidv5(s.studentId, STUDENT_UUID_NAMESPACE);
-      studentsMapByUuid.set(studentUuid, s);
+      studentsMapByStudentId.set(s.studentId, s);
     });
     allTests.forEach(t => testsMap.set(t.id, t));
 
     return results.map(result => ({
       ...result,
-      student: studentsMapByUuid.get(result.studentId) || null,
+      student: studentsMapByStudentId.get(result.studentId) || null,
       test: testsMap.get(result.testId) || null,
     }));
   }
@@ -295,9 +284,7 @@ export class SupabaseStorage implements IStorage {
     let queryBuilder = this.supabase.from('test_results').select('*');
 
     if (filters.studentId) {
-      // Convert studentId string to deterministic UUID for lookup
-      const studentUuid = uuidv5(filters.studentId, STUDENT_UUID_NAMESPACE);
-      queryBuilder = queryBuilder.eq('student_id', studentUuid);
+      queryBuilder = queryBuilder.eq('student_id', filters.studentId);
     }
 
     if (filters.testId) {
