@@ -41,6 +41,7 @@ export default function AdminDashboard() {
     studentId: '',
     name: '',
     grade: '' as GradeLevel | '',
+    parentPhone: '',
   });
 
   const [testForm, setTestForm] = useState({
@@ -93,7 +94,7 @@ export default function AdminDashboard() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/students'] });
       setStudentModalOpen(false);
-      setStudentForm({ studentId: '', name: '', grade: '' });
+      setStudentForm({ studentId: '', name: '', grade: '', parentPhone: '' });
       toast({ title: "학생이 추가되었습니다." });
     },
     onError: () => {
@@ -114,7 +115,7 @@ export default function AdminDashboard() {
       queryClient.invalidateQueries({ queryKey: ['/api/students'] });
       setStudentModalOpen(false);
       setEditingStudent(null);
-      setStudentForm({ studentId: '', name: '', grade: '' });
+      setStudentForm({ studentId: '', name: '', grade: '', parentPhone: '' });
       toast({ title: "학생 정보가 수정되었습니다." });
     },
   });
@@ -247,6 +248,7 @@ export default function AdminDashboard() {
       studentId: student.studentId,
       name: student.name,
       grade: student.grade as GradeLevel,
+      parentPhone: student.parentPhone || '',
     });
     setStudentModalOpen(true);
   };
@@ -611,6 +613,15 @@ export default function AdminDashboard() {
                     </SelectContent>
                   </Select>
                 </div>
+                <div>
+                  <label className="block text-sm font-medium mb-2">학부모 전화번호</label>
+                  <Input
+                    value={studentForm.parentPhone}
+                    onChange={(e) => setStudentForm({ ...studentForm, parentPhone: e.target.value })}
+                    placeholder="예: 010-1234-5678"
+                    data-testid="student-parent-phone-input"
+                  />
+                </div>
                 <div className="flex space-x-2">
                   <Button type="submit" className="flex-1" data-testid="save-student-button">
                     {editingStudent ? '수정' : '추가'}
@@ -622,7 +633,7 @@ export default function AdminDashboard() {
                     onClick={() => {
                       setStudentModalOpen(false);
                       setEditingStudent(null);
-                      setStudentForm({ studentId: '', name: '', grade: '' });
+                      setStudentForm({ studentId: '', name: '', grade: '', parentPhone: '' });
                     }}
                   >
                     취소
@@ -642,6 +653,7 @@ export default function AdminDashboard() {
                 <TableHead>학생 ID</TableHead>
                 <TableHead>이름</TableHead>
                 <TableHead>학년</TableHead>
+                <TableHead>학부모 전화번호</TableHead>
                 <TableHead>등록일</TableHead>
                 <TableHead>작업</TableHead>
               </TableRow>
@@ -652,6 +664,7 @@ export default function AdminDashboard() {
                   <TableCell className="font-mono text-sm">{student.studentId}</TableCell>
                   <TableCell className="font-medium">{student.name}</TableCell>
                   <TableCell>{student.grade}</TableCell>
+                  <TableCell>{student.parentPhone || '-'}</TableCell>
                   <TableCell>{new Date(student.createdAt).toLocaleDateString()}</TableCell>
                   <TableCell>
                     <div className="flex space-x-2">

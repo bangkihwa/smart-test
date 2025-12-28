@@ -3,6 +3,7 @@ export interface Student {
   studentId: string;
   name: string;
   grade: string;
+  parentPhone?: string | null;
   createdAt: string;
 }
 

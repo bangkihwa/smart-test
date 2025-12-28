@@ -54,6 +54,7 @@ export class SupabaseStorage implements IStorage {
         student_id: student.studentId,
         student_name: student.name,
         grade: student.grade,
+        phone: student.parentPhone || null,
       })
       .select()
       .single();
@@ -67,6 +68,7 @@ export class SupabaseStorage implements IStorage {
     if (student.studentId !== undefined) updateData.student_id = student.studentId;
     if (student.name !== undefined) updateData.student_name = student.name;
     if (student.grade !== undefined) updateData.grade = student.grade;
+    if (student.parentPhone !== undefined) updateData.phone = student.parentPhone || null;
 
     const { data, error } = await this.supabase
       .from('students')
@@ -323,6 +325,7 @@ export class SupabaseStorage implements IStorage {
       studentId: data.student_id,
       name: data.student_name || data.name,
       grade: data.grade,
+      parentPhone: data.phone || null,
       createdAt: new Date(data.created_at || Date.now()),
     };
   }

@@ -17,7 +17,12 @@
       "Bash(npx vercel --version)",
       "Bash(npx vercel --prod --yes)",
       "Bash(npx vercel login)",
-      "Bash(npx vercel:*)"
+      "Bash(npx vercel:*)",
+      "Bash(git commit:*)",
+      "Bash(npm run dev:*)",
+      "Bash(cmd /c \"taskkill /PID 38364 /F\")",
+      "Bash(tasklist:*)",
+      "Bash(powershell -Command:*)"
     ]
   }
 }
