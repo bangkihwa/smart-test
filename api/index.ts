@@ -1,9 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createClient } from '@supabase/supabase-js';
-import { v5 as uuidv5 } from 'uuid';
-
-// Namespace UUID for generating deterministic UUIDs from student IDs
-const STUDENT_UUID_NAMESPACE = '6ba7b810-9dad-11d1-80b4-00c04fd430c8';
 
 const supabaseUrl = process.env.SUPABASE_URL!;
 const supabaseKey = process.env.SUPABASE_ANON_KEY!;
@@ -16,6 +12,7 @@ function mapStudent(data: any) {
     studentId: data.student_id,
     name: data.student_name || data.name,
     grade: data.grade,
+    parentPhone: data.phone || null,
     createdAt: new Date(data.created_at || Date.now()),
   };
 }
@@ -137,6 +134,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           student_id: body.studentId,
           student_name: body.name,
           grade: body.grade,
+          phone: body.parentPhone || null,
         })
         .select()
         .single();
@@ -151,6 +149,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (body.studentId !== undefined) updateData.student_id = body.studentId;
       if (body.name !== undefined) updateData.student_name = body.name;
       if (body.grade !== undefined) updateData.grade = body.grade;
+      if (body.parentPhone !== undefined) updateData.phone = body.parentPhone || null;
 
       const { data, error } = await supabase
         .from('students')
@@ -304,14 +303,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (path.match(/^\/test-results\/student\/(.+)$/) && method === 'GET') {
       const studentIdParam = path.split('/').pop();
 
-      // Generate deterministic UUID from studentId (same as supabase-storage.ts)
-      const studentUuid = uuidv5(studentIdParam!, STUDENT_UUID_NAMESPACE);
-
-      // Query test_results with generated UUID
+      // Query test_results with original studentId
       const { data, error } = await supabase
         .from('test_results')
         .select('*')
-        .eq('student_id', studentUuid)
+        .eq('student_id', studentIdParam)
         .order('completed_at', { ascending: false });
 
       if (error) throw error;
@@ -428,13 +424,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       const finalScore = Math.round((totalScore / totalQuestions) * 100);
 
-      // Generate deterministic UUID from studentId (same as supabase-storage.ts)
-      const studentUuid = uuidv5(studentId, STUDENT_UUID_NAMESPACE);
-
       const { data, error } = await supabase
         .from('test_results')
         .insert({
-          student_id: studentUuid,  // 학생의 UUID 사용 (uuidv5로 생성)
+          student_id: studentId,  // 원본 studentId 그대로 저장
           test_id: test.id,
           answers,
           score: finalScore,
