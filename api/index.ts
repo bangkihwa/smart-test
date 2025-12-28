@@ -38,6 +38,7 @@ function mapTestResult(data: any) {
     score: data.score,
     sectionScores: data.section_scores,
     assignedTasks: data.assigned_tasks,
+    specialNote: data.special_note || null,
     completedAt: new Date(data.completed_at),
   };
 }
@@ -439,6 +440,83 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       if (error) throw error;
       return res.status(201).json(mapTestResult(data));
+    }
+
+    // Update special note for test result (대처방안 저장)
+    if (path.match(/^\/test-results\/([a-f0-9-]+)\/special-note$/) && method === 'PUT') {
+      const id = path.split('/')[2];
+      const { specialNote } = body;
+
+      const { data, error } = await supabase
+        .from('test_results')
+        .update({ special_note: specialNote })
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return res.json(mapTestResult(data));
+    }
+
+    // Get students needing special attention (70점 미만, 대처방안 미입력)
+    if (path === '/test-results/special-attention' && method === 'GET') {
+      const { data: results, error: resultsError } = await supabase
+        .from('test_results')
+        .select('*')
+        .lt('score', 70)
+        .is('special_note', null)
+        .order('completed_at', { ascending: false });
+
+      if (resultsError) throw resultsError;
+
+      const { data: students } = await supabase.from('students').select('*');
+      const { data: tests } = await supabase.from('tests').select('*');
+
+      const studentsMap = new Map();
+      (students || []).forEach((s: any) => {
+        studentsMap.set(s.student_id, mapStudent(s));
+      });
+
+      const testsMap = new Map();
+      (tests || []).forEach((t: any) => testsMap.set(t.id, mapTest(t)));
+
+      const resultsWithRelations = (results || []).map((r: any) => ({
+        ...mapTestResult(r),
+        student: studentsMap.get(r.student_id) || null,
+        test: testsMap.get(r.test_id) || null,
+      }));
+
+      return res.json(resultsWithRelations);
+    }
+
+    // Get all students with special attention history (대처방안 입력된 것 포함)
+    if (path === '/test-results/special-attention-history' && method === 'GET') {
+      const { data: results, error: resultsError } = await supabase
+        .from('test_results')
+        .select('*')
+        .lt('score', 70)
+        .order('completed_at', { ascending: false });
+
+      if (resultsError) throw resultsError;
+
+      const { data: students } = await supabase.from('students').select('*');
+      const { data: tests } = await supabase.from('tests').select('*');
+
+      const studentsMap = new Map();
+      (students || []).forEach((s: any) => {
+        studentsMap.set(s.student_id, mapStudent(s));
+      });
+
+      const testsMap = new Map();
+      (tests || []).forEach((t: any) => testsMap.set(t.id, mapTest(t)));
+
+      const resultsWithRelations = (results || []).map((r: any) => ({
+        ...mapTestResult(r),
+        student: studentsMap.get(r.student_id) || null,
+        test: testsMap.get(r.test_id) || null,
+      }));
+
+      return res.json(resultsWithRelations);
     }
 
     return res.status(404).json({ message: 'Not found' });

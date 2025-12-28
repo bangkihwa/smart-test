@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { BarChart3, TrendingUp, Search } from "lucide-react";
+import { BarChart3, TrendingUp, Search, AlertTriangle, History } from "lucide-react";
 import { Link } from "wouter";
 import Navigation from "@/components/navigation";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -17,7 +17,7 @@ import type { Student, Test, TestResult, GradeLevel } from "@/lib/types";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { format } from 'date-fns';
 
-type AdminView = 'dashboard' | 'students' | 'tests' | 'results' | 'analysis';
+type AdminView = 'dashboard' | 'students' | 'tests' | 'results' | 'analysis' | 'special';
 
 export default function AdminDashboard() {
   const { toast } = useToast();
@@ -32,10 +32,25 @@ export default function AdminDashboard() {
   const [endDate, setEndDate] = useState<string>('');
   const [analysisStudentSearch, setAnalysisStudentSearch] = useState<string>('');
 
+  // Special attention states
+  const [showHistory, setShowHistory] = useState(false);
+  const [specialNoteInput, setSpecialNoteInput] = useState<{ [key: string]: string }>({});
+  const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
+
   // Fetch data
   const { data: students } = useQuery<Student[]>({ queryKey: ['/api/students'] });
   const { data: tests } = useQuery<Test[]>({ queryKey: ['/api/tests'] });
   const { data: testResults } = useQuery<(TestResult & { student: Student, test: Test })[]>({ queryKey: ['/api/test-results/all'] });
+
+  // Special attention data
+  const { data: specialAttention, refetch: refetchSpecialAttention } = useQuery<(TestResult & { student: Student, test: Test })[]>({
+    queryKey: ['/api/test-results/special-attention'],
+    enabled: currentView === 'special'
+  });
+  const { data: specialAttentionHistory, refetch: refetchSpecialHistory } = useQuery<(TestResult & { student: Student, test: Test })[]>({
+    queryKey: ['/api/test-results/special-attention-history'],
+    enabled: currentView === 'special' && showHistory
+  });
 
   // Student management
   const [studentForm, setStudentForm] = useState({
@@ -179,13 +194,47 @@ export default function AdminDashboard() {
       toast({ title: "테스트가 삭제되었습니다." });
     },
     onError: () => {
-      toast({ 
-        title: "테스트 삭제 실패", 
+      toast({
+        title: "테스트 삭제 실패",
         description: "다시 시도해주세요.",
-        variant: "destructive" 
+        variant: "destructive"
       });
     },
   });
+
+  // Special note mutation (대처방안 저장)
+  const saveSpecialNoteMutation = useMutation({
+    mutationFn: async ({ id, specialNote }: { id: string, specialNote: string }) => {
+      const response = await apiRequest('PUT', `/api/test-results/${id}/special-note`, { specialNote });
+      return await response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/test-results/special-attention'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/test-results/special-attention-history'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/test-results/all'] });
+      setEditingNoteId(null);
+      toast({ title: "대처방안이 저장되었습니다." });
+    },
+    onError: () => {
+      toast({
+        title: "대처방안 저장 실패",
+        description: "다시 시도해주세요.",
+        variant: "destructive"
+      });
+    },
+  });
+
+  const handleSaveSpecialNote = (resultId: string) => {
+    const note = specialNoteInput[resultId];
+    if (!note || note.trim() === '') {
+      toast({
+        title: "대처방안을 입력해주세요",
+        variant: "destructive"
+      });
+      return;
+    }
+    saveSpecialNoteMutation.mutate({ id: resultId, specialNote: note });
+  };
 
   const resetTestForm = () => {
     setTestForm({
@@ -1363,6 +1412,179 @@ export default function AdminDashboard() {
     );
   };
 
+  const renderSpecial = () => {
+    const dataToShow = showHistory ? specialAttentionHistory : specialAttention;
+
+    return (
+      <div className="p-6 lg:p-8">
+        <div className="mb-8">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h2 className="text-3xl font-bold text-foreground mb-2 flex items-center gap-2">
+                <AlertTriangle className="w-8 h-8 text-destructive" />
+                특별 관리 대상
+              </h2>
+              <p className="text-muted-foreground">
+                70점 미만 학생들의 대처방안을 입력하고 관리하세요
+              </p>
+            </div>
+            <Button
+              variant={showHistory ? "default" : "outline"}
+              onClick={() => setShowHistory(!showHistory)}
+              className="flex items-center gap-2"
+            >
+              <History className="w-4 h-4" />
+              {showHistory ? "미처리 목록 보기" : "전체 이력 보기"}
+            </Button>
+          </div>
+        </div>
+
+        {/* Stats Card */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div className="w-12 h-12 bg-destructive/10 rounded-lg flex items-center justify-center">
+                  <AlertTriangle className="w-6 h-6 text-destructive" />
+                </div>
+                <span className="text-xs font-medium text-muted-foreground">대기 중</span>
+              </div>
+              <div className="text-3xl font-bold text-foreground mb-1">{specialAttention?.length || 0}</div>
+              <div className="text-sm text-muted-foreground">대처방안 미입력 학생</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
+                  <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                  </svg>
+                </div>
+                <span className="text-xs font-medium text-muted-foreground">처리 완료</span>
+              </div>
+              <div className="text-3xl font-bold text-foreground mb-1">
+                {(specialAttentionHistory?.length || 0) - (specialAttention?.length || 0)}
+              </div>
+              <div className="text-sm text-muted-foreground">대처방안 입력 완료</div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Special Attention List */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              {showHistory ? (
+                <>
+                  <History className="w-5 h-5" />
+                  전체 특별관리 이력
+                </>
+              ) : (
+                <>
+                  <AlertTriangle className="w-5 h-5 text-destructive" />
+                  대처방안 입력 필요
+                </>
+              )}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {!dataToShow || dataToShow.length === 0 ? (
+              <div className="text-center py-12">
+                <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
+                  {showHistory ? (
+                    <History className="w-8 h-8 text-muted-foreground" />
+                  ) : (
+                    <svg className="w-8 h-8 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                    </svg>
+                  )}
+                </div>
+                <p className="text-lg text-muted-foreground">
+                  {showHistory ? "특별관리 이력이 없습니다" : "모든 학생의 대처방안이 입력되었습니다"}
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {dataToShow.map((result) => (
+                  <div
+                    key={result.id}
+                    className={`border rounded-lg p-4 ${result.specialNote ? 'border-green-200 bg-green-50/50' : 'border-destructive/30 bg-destructive/5'}`}
+                  >
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-2">
+                          <Badge variant="destructive">{result.score}점</Badge>
+                          <span className="font-medium">{result.student?.name || '알 수 없음'}</span>
+                          <span className="text-sm text-muted-foreground">({result.student?.grade})</span>
+                          {result.specialNote && (
+                            <Badge variant="outline" className="bg-green-100 text-green-700 border-green-300">
+                              처리 완료
+                            </Badge>
+                          )}
+                        </div>
+                        <div className="text-sm text-muted-foreground">
+                          <span className="font-medium">{result.test?.name || '알 수 없음'}</span>
+                          <span className="mx-2">•</span>
+                          <span>{format(new Date(result.completedAt), 'yyyy-MM-dd HH:mm')}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Section scores */}
+                    <div className="mb-3">
+                      <p className="text-sm text-muted-foreground mb-2">섹션별 점수:</p>
+                      <div className="flex flex-wrap gap-2">
+                        {result.sectionScores.map((section, idx) => (
+                          <Badge
+                            key={idx}
+                            variant={section.correct / section.total >= 0.7 ? 'secondary' : 'destructive'}
+                          >
+                            {idx + 1}섹션: {section.correct}/{section.total}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Special Note Input/Display */}
+                    {result.specialNote ? (
+                      <div className="bg-white border border-green-200 rounded-lg p-3">
+                        <p className="text-sm font-medium text-green-700 mb-1">대처방안:</p>
+                        <p className="text-sm">{result.specialNote}</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        <Textarea
+                          placeholder="대처방안을 입력하세요... (예: 개별 보충수업 진행, 학부모 상담 예정 등)"
+                          value={specialNoteInput[result.id] || ''}
+                          onChange={(e) => setSpecialNoteInput({
+                            ...specialNoteInput,
+                            [result.id]: e.target.value
+                          })}
+                          rows={2}
+                          className="text-sm"
+                        />
+                        <div className="flex justify-end">
+                          <Button
+                            size="sm"
+                            onClick={() => handleSaveSpecialNote(result.id)}
+                            disabled={saveSpecialNoteMutation.isPending}
+                          >
+                            {saveSpecialNoteMutation.isPending ? '저장 중...' : '대처방안 저장'}
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    );
+  };
+
   return (
     <div className="flex h-screen bg-background">
       <Navigation isAdmin />
@@ -1373,7 +1595,7 @@ export default function AdminDashboard() {
           <div className="flex items-center justify-between p-4">
             <h1 className="text-lg font-bold text-foreground">관리자</h1>
             <div className="flex space-x-1 overflow-x-auto">
-              {(['dashboard', 'students', 'tests', 'results', 'analysis'] as AdminView[]).map((view) => (
+              {(['dashboard', 'students', 'tests', 'results', 'analysis', 'special'] as AdminView[]).map((view) => (
                 <Button
                   key={view}
                   variant={currentView === view ? "default" : "ghost"}
@@ -1381,10 +1603,11 @@ export default function AdminDashboard() {
                   onClick={() => setCurrentView(view)}
                   className="text-xs whitespace-nowrap"
                 >
-                  {view === 'dashboard' ? '대시보드' : 
+                  {view === 'dashboard' ? '대시보드' :
                    view === 'students' ? '학생' :
-                   view === 'tests' ? '테스트' : 
-                   view === 'results' ? '성적' : '분석'}
+                   view === 'tests' ? '테스트' :
+                   view === 'results' ? '성적' :
+                   view === 'analysis' ? '분석' : '특별관리'}
                 </Button>
               ))}
             </div>
@@ -1394,7 +1617,7 @@ export default function AdminDashboard() {
         {/* Desktop Tabs */}
         <div className="hidden md:block border-b border-border">
           <div className="flex space-x-8 px-8 pt-4">
-            {(['dashboard', 'students', 'tests', 'results', 'analysis'] as AdminView[]).map((view) => (
+            {(['dashboard', 'students', 'tests', 'results', 'analysis', 'special'] as AdminView[]).map((view) => (
               <button
                 key={view}
                 onClick={() => setCurrentView(view)}
@@ -1402,13 +1625,14 @@ export default function AdminDashboard() {
                   currentView === view
                     ? 'border-primary text-primary'
                     : 'border-transparent text-muted-foreground hover:text-foreground'
-                }`}
+                } ${view === 'special' ? 'text-destructive' : ''}`}
                 data-testid={`tab-${view}`}
               >
-                {view === 'dashboard' ? '대시보드' : 
+                {view === 'dashboard' ? '대시보드' :
                  view === 'students' ? '학생 관리' :
-                 view === 'tests' ? '테스트 생성' : 
-                 view === 'results' ? '성적 조회' : '학생별 분석'}
+                 view === 'tests' ? '테스트 생성' :
+                 view === 'results' ? '성적 조회' :
+                 view === 'analysis' ? '학생별 분석' : '특별관리'}
               </button>
             ))}
           </div>
@@ -1419,6 +1643,7 @@ export default function AdminDashboard() {
         {currentView === 'tests' && renderTests()}
         {currentView === 'results' && renderResults()}
         {currentView === 'analysis' && renderAnalysis()}
+        {currentView === 'special' && renderSpecial()}
       </main>
 
       <Navigation />

@@ -37,6 +37,7 @@ export interface TestResult {
   score: number;
   sectionScores: SectionScore[];
   assignedTasks: AssignedTask[];
+  specialNote?: string | null;
   completedAt: string;
 }
 
