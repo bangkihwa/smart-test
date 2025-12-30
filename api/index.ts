@@ -1,5 +1,16 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createClient } from '@supabase/supabase-js';
+import { SolapiMessageService } from 'solapi';
+
+// 솔라피 설정
+const solapiApiKey = process.env.SOLAPI_API_KEY || '';
+const solapiApiSecret = process.env.SOLAPI_API_SECRET || '';
+const senderPhone = process.env.SOLAPI_SENDER_PHONE || '';
+
+let messageService: SolapiMessageService | null = null;
+if (solapiApiKey && solapiApiSecret) {
+  messageService = new SolapiMessageService(solapiApiKey, solapiApiSecret);
+}
 
 const supabaseUrl = process.env.SUPABASE_URL!;
 const supabaseKey = process.env.SUPABASE_ANON_KEY!;
@@ -7,14 +18,31 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 
 // Helper functions
 function mapStudent(data: any) {
+  // subjects가 쉼표로 구분된 문자열이면 배열로 변환
+  let subjects = null;
+  if (data.subjects) {
+    if (typeof data.subjects === 'string') {
+      subjects = data.subjects.split(',').map((s: string) => s.trim()).filter((s: string) => s);
+    } else if (Array.isArray(data.subjects)) {
+      subjects = data.subjects;
+    }
+  }
+
   return {
     id: data.id?.toString() || data.id,
     studentId: data.student_id,
     name: data.student_name || data.name,
     grade: data.grade,
     parentPhone: data.phone || null,
+    subjects,
     createdAt: new Date(data.created_at || Date.now()),
   };
+}
+
+// 과목 배열을 쉼표 구분 문자열로 변환
+function subjectsToString(subjects: string[] | null | undefined): string | null {
+  if (!subjects || subjects.length === 0) return null;
+  return subjects.join(',');
 }
 
 function mapTest(data: any) {
@@ -41,6 +69,120 @@ function mapTestResult(data: any) {
     specialNote: data.special_note || null,
     completedAt: new Date(data.completed_at),
   };
+}
+
+// SMS 관련 함수들
+function getScoreMessage(score: number): string {
+  if (score >= 90) return '훌륭합니다!';
+  if (score >= 80) return '잘했어요!';
+  if (score >= 70) return '조금만 더 노력하면 완벽해요!';
+  if (score >= 60) return '조금 더 복습이 필요해요.';
+  return '열심히 복습해주세요!';
+}
+
+function getTaskTypeName(taskType: string): string {
+  switch (taskType) {
+    case 'light': return '기본';
+    case 'medium': return '보충';
+    case 'heavy': return '심화';
+    default: return '기본';
+  }
+}
+
+// 파트별 점수에 따른 한단어 피드백
+function getSectionFeedback(percentage: number): string {
+  if (percentage >= 90) return '우수';
+  if (percentage >= 80) return '양호';
+  if (percentage >= 70) return '보통';
+  if (percentage >= 60) return '노력';
+  return '복습필요';
+}
+
+interface SectionScore {
+  sectionNumber: number;
+  sectionName?: string;
+  correct: number;
+  total: number;
+  wrongAnswers: number[];
+}
+
+interface AssignedTask {
+  sectionNumber: number;
+  sectionName?: string;
+  taskType: string;
+  task: string;
+}
+
+function generateTestResultMessage(
+  studentName: string,
+  testName: string,
+  score: number,
+  totalQuestions: number,
+  correctAnswers: number,
+  sectionScores: SectionScore[],
+  assignedTasks: AssignedTask[]
+): string {
+  const date = new Date();
+  const dateStr = `${date.getMonth() + 1}/${date.getDate()}`;
+
+  let message = `[에이원과학학원 성적알림]
+
+${studentName} 학생
+${testName} 결과
+
+${dateStr} 테스트 결과
+총점: ${score}점
+정답: ${correctAnswers}/${totalQuestions}문항
+${getScoreMessage(score)}
+
+[파트별 성적]
+`;
+
+  sectionScores.forEach((section) => {
+    const sectionName = section.sectionName || `파트${section.sectionNumber}`;
+    const percentage = Math.round((section.correct / section.total) * 100);
+    const feedback = getSectionFeedback(percentage);
+    message += `${sectionName}: ${section.correct}/${section.total} (${feedback})\n`;
+  });
+
+  const tasksWithWork = assignedTasks.filter(t => t.task && t.task.trim() !== '');
+  if (tasksWithWork.length > 0) {
+    message += '\n[보충 과제]\n';
+    tasksWithWork.forEach(task => {
+      const sectionName = task.sectionName || `파트${task.sectionNumber}`;
+      message += `${sectionName}(${getTaskTypeName(task.taskType)}): ${task.task}\n`;
+    });
+  }
+
+  message += '\n문의: 목동에이원과학학원';
+
+  return message;
+}
+
+async function sendSMS(phone: string, message: string): Promise<{ success: boolean; error?: string }> {
+  if (!messageService || !senderPhone) {
+    console.log('[SMS] 솔라피 설정 없음, 발송 건너뜀');
+    return { success: false, error: 'SMS service not configured' };
+  }
+
+  const normalizedPhone = phone.replace(/-/g, '');
+  if (!/^01[0-9]{8,9}$/.test(normalizedPhone)) {
+    return { success: false, error: 'Invalid phone number format' };
+  }
+
+  try {
+    console.log(`[SMS] 발송 시도: ${normalizedPhone}`);
+    await messageService.send({
+      to: normalizedPhone,
+      from: senderPhone,
+      text: message,
+    });
+    console.log('[SMS] 발송 성공');
+    return { success: true };
+  } catch (error: any) {
+    console.error('[SMS] 발송 실패:', error);
+    return { success: false, error: error.message };
+  }
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -136,6 +278,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           student_name: body.name,
           grade: body.grade,
           phone: body.parentPhone || null,
+          subjects: subjectsToString(body.subjects),
         })
         .select()
         .single();
@@ -151,6 +294,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (body.name !== undefined) updateData.student_name = body.name;
       if (body.grade !== undefined) updateData.grade = body.grade;
       if (body.parentPhone !== undefined) updateData.phone = body.parentPhone || null;
+      if (body.subjects !== undefined) updateData.subjects = subjectsToString(body.subjects);
 
       const { data, error } = await supabase
         .from('students')
@@ -439,6 +583,43 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         .single();
 
       if (error) throw error;
+
+      // 학부모에게 SMS 발송 (비동기 - 응답 지연 방지)
+      const student = mapStudent(studentData);
+      if (student.parentPhone) {
+        const sectionScoresWithNames = sectionScores.map((score: any, idx: number) => ({
+          ...score,
+          sectionName: test.sections[idx]?.name || `파트${score.sectionNumber}`,
+        }));
+
+        const assignedTasksWithNames = assignedTasks.map((task: any, idx: number) => ({
+          ...task,
+          sectionName: test.sections[idx]?.name || `파트${task.sectionNumber}`,
+        }));
+
+        const smsMessage = generateTestResultMessage(
+          student.name,
+          test.name,
+          finalScore,
+          totalQuestions,
+          totalScore,
+          sectionScoresWithNames,
+          assignedTasksWithNames
+        );
+
+        sendSMS(student.parentPhone, smsMessage)
+          .then((result) => {
+            if (result.success) {
+              console.log(`[SMS] 성적 알림 발송 완료: ${student.name} -> ${student.parentPhone}`);
+            } else {
+              console.log(`[SMS] 성적 알림 발송 실패: ${result.error}`);
+            }
+          })
+          .catch((err) => console.error('[SMS] 발송 중 오류:', err));
+      } else {
+        console.log(`[SMS] 학부모 전화번호 없음: ${student.name}`);
+      }
+
       return res.status(201).json(mapTestResult(data));
     }
 

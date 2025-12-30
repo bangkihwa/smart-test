@@ -8,8 +8,20 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { BarChart3, TrendingUp, Search, AlertTriangle, History } from "lucide-react";
+
+// 과목 목록 (Supabase에 한글로 저장)
+const SUBJECTS = [
+  { id: '물리', label: '물리' },
+  { id: '화학', label: '화학' },
+  { id: '생명', label: '생명' },
+  { id: '지학', label: '지학' },
+  { id: '통과', label: '통과' },
+  { id: '내신', label: '내신' },
+];
 import { Link } from "wouter";
 import Navigation from "@/components/navigation";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -37,6 +49,9 @@ export default function AdminDashboard() {
   const [specialNoteInput, setSpecialNoteInput] = useState<{ [key: string]: string }>({});
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
 
+  // Student list search
+  const [studentSearch, setStudentSearch] = useState('');
+
   // Fetch data
   const { data: students } = useQuery<Student[]>({ queryKey: ['/api/students'] });
   const { data: tests } = useQuery<Test[]>({ queryKey: ['/api/tests'] });
@@ -58,6 +73,7 @@ export default function AdminDashboard() {
     name: '',
     grade: '' as GradeLevel | '',
     parentPhone: '',
+    subjects: [] as string[],
   });
 
   const [testForm, setTestForm] = useState({
@@ -110,7 +126,7 @@ export default function AdminDashboard() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/students'] });
       setStudentModalOpen(false);
-      setStudentForm({ studentId: '', name: '', grade: '', parentPhone: '' });
+      setStudentForm({ studentId: '', name: '', grade: '', parentPhone: '', subjects: [] });
       toast({ title: "학생이 추가되었습니다." });
     },
     onError: () => {
@@ -131,7 +147,7 @@ export default function AdminDashboard() {
       queryClient.invalidateQueries({ queryKey: ['/api/students'] });
       setStudentModalOpen(false);
       setEditingStudent(null);
-      setStudentForm({ studentId: '', name: '', grade: '', parentPhone: '' });
+      setStudentForm({ studentId: '', name: '', grade: '', parentPhone: '', subjects: [] });
       toast({ title: "학생 정보가 수정되었습니다." });
     },
   });
@@ -299,8 +315,19 @@ export default function AdminDashboard() {
       name: student.name,
       grade: student.grade as GradeLevel,
       parentPhone: student.parentPhone || '',
+      subjects: student.subjects || [],
     });
     setStudentModalOpen(true);
+  };
+
+  // 과목 체크박스 토글
+  const handleSubjectToggle = (subjectId: string) => {
+    setStudentForm(prev => ({
+      ...prev,
+      subjects: prev.subjects.includes(subjectId)
+        ? prev.subjects.filter(s => s !== subjectId)
+        : [...prev.subjects, subjectId]
+    }));
   };
 
   const handleDeleteStudent = (id: string) => {
@@ -605,6 +632,47 @@ export default function AdminDashboard() {
     </div>
   );
 
+  // 학년 정렬 순서 (중등1 -> 중등2 -> 중등3 -> 고등1 -> 고등2 -> 고등3)
+  const gradeOrder: Record<string, number> = {
+    '중등1학년': 1, '중등 1학년': 1, '중1': 1,
+    '중등2학년': 2, '중등 2학년': 2, '중2': 2,
+    '중등3학년': 3, '중등 3학년': 3, '중3': 3,
+    '고등1학년': 4, '고등 1학년': 4, '고1': 4,
+    '고등2학년': 5, '고등 2학년': 5, '고2': 5,
+    '고등3학년': 6, '고등 3학년': 6, '고3': 6,
+  };
+
+  const getGradeOrder = (grade: string): number => {
+    return gradeOrder[grade] || 99;
+  };
+
+  // 학생 검색 필터링 및 학년별 정렬
+  const filteredStudents = useMemo(() => {
+    if (!students) return [];
+
+    let result = [...students];
+
+    // 검색 필터 적용
+    if (studentSearch.trim()) {
+      const searchLower = studentSearch.toLowerCase().trim();
+      result = result.filter(student =>
+        student.name.toLowerCase().includes(searchLower) ||
+        student.studentId.toLowerCase().includes(searchLower)
+      );
+    }
+
+    // 학년별 정렬 (중등1 -> 중등2 -> 중등3 -> 고등1 -> 고등2 -> 고등3)
+    result.sort((a, b) => {
+      const orderA = getGradeOrder(a.grade);
+      const orderB = getGradeOrder(b.grade);
+      if (orderA !== orderB) return orderA - orderB;
+      // 같은 학년이면 이름순
+      return a.name.localeCompare(b.name, 'ko');
+    });
+
+    return result;
+  }, [students, studentSearch]);
+
   const renderStudents = () => (
     <div className="p-6 lg:p-8">
       <div className="mb-8">
@@ -672,18 +740,39 @@ export default function AdminDashboard() {
                     data-testid="student-parent-phone-input"
                   />
                 </div>
+                <div>
+                  <label className="block text-sm font-medium mb-2">수강 과목</label>
+                  <p className="text-xs text-muted-foreground mb-3">수강하는 과목을 모두 선택하세요</p>
+                  <div className="grid grid-cols-3 gap-3">
+                    {SUBJECTS.map((subject) => (
+                      <div key={subject.id} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={`subject-${subject.id}`}
+                          checked={studentForm.subjects.includes(subject.id)}
+                          onCheckedChange={() => handleSubjectToggle(subject.id)}
+                        />
+                        <Label
+                          htmlFor={`subject-${subject.id}`}
+                          className="text-sm font-normal cursor-pointer"
+                        >
+                          {subject.label}
+                        </Label>
+                      </div>
+                    ))}
+                  </div>
+                </div>
                 <div className="flex space-x-2">
                   <Button type="submit" className="flex-1" data-testid="save-student-button">
                     {editingStudent ? '수정' : '추가'}
                   </Button>
-                  <Button 
-                    type="button" 
-                    variant="outline" 
+                  <Button
+                    type="button"
+                    variant="outline"
                     className="flex-1"
                     onClick={() => {
                       setStudentModalOpen(false);
                       setEditingStudent(null);
-                      setStudentForm({ studentId: '', name: '', grade: '', parentPhone: '' });
+                      setStudentForm({ studentId: '', name: '', grade: '', parentPhone: '', subjects: [] });
                     }}
                   >
                     취소
@@ -695,6 +784,24 @@ export default function AdminDashboard() {
         </div>
       </div>
 
+      {/* 검색창 */}
+      <div className="mb-4">
+        <div className="relative max-w-md">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+          <Input
+            placeholder="학생 이름 또는 ID로 검색..."
+            value={studentSearch}
+            onChange={(e) => setStudentSearch(e.target.value)}
+            className="pl-10"
+          />
+        </div>
+        {studentSearch && (
+          <p className="text-sm text-muted-foreground mt-2">
+            {filteredStudents.length}명의 학생을 찾았습니다
+          </p>
+        )}
+      </div>
+
       <Card>
         <CardContent>
           <Table>
@@ -703,17 +810,31 @@ export default function AdminDashboard() {
                 <TableHead>학생 ID</TableHead>
                 <TableHead>이름</TableHead>
                 <TableHead>학년</TableHead>
+                <TableHead>수강 과목</TableHead>
                 <TableHead>학부모 전화번호</TableHead>
                 <TableHead>등록일</TableHead>
                 <TableHead>작업</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {students?.map((student: Student) => (
+              {filteredStudents.map((student: Student) => (
                 <TableRow key={student.id}>
                   <TableCell className="font-mono text-sm">{student.studentId}</TableCell>
                   <TableCell className="font-medium">{student.name}</TableCell>
                   <TableCell>{student.grade}</TableCell>
+                  <TableCell>
+                    <div className="flex flex-wrap gap-1">
+                      {student.subjects && student.subjects.length > 0 ? (
+                        student.subjects.map((subjectId) => (
+                          <Badge key={subjectId} variant="secondary" className="text-xs">
+                            {subjectId}
+                          </Badge>
+                        ))
+                      ) : (
+                        <span className="text-muted-foreground text-sm">-</span>
+                      )}
+                    </div>
+                  </TableCell>
                   <TableCell>{student.parentPhone || '-'}</TableCell>
                   <TableCell>{new Date(student.createdAt).toLocaleDateString()}</TableCell>
                   <TableCell>

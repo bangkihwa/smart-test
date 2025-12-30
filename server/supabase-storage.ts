@@ -43,6 +43,11 @@ export class SupabaseStorage implements IStorage {
 
     const nextId = (maxIdData?.id || 0) + 1;
 
+    // subjects 배열을 쉼표로 구분된 문자열로 변환
+    const subjectsStr = student.subjects && student.subjects.length > 0
+      ? student.subjects.join(',')
+      : null;
+
     const { data, error } = await this.supabase
       .from('students')
       .insert({
@@ -51,6 +56,7 @@ export class SupabaseStorage implements IStorage {
         student_name: student.name,
         grade: student.grade,
         phone: student.parentPhone || null,
+        subjects: subjectsStr,
       })
       .select()
       .single();
@@ -65,6 +71,11 @@ export class SupabaseStorage implements IStorage {
     if (student.name !== undefined) updateData.student_name = student.name;
     if (student.grade !== undefined) updateData.grade = student.grade;
     if (student.parentPhone !== undefined) updateData.phone = student.parentPhone || null;
+    if (student.subjects !== undefined) {
+      updateData.subjects = student.subjects && student.subjects.length > 0
+        ? student.subjects.join(',')
+        : null;
+    }
 
     const { data, error } = await this.supabase
       .from('students')
@@ -307,12 +318,23 @@ export class SupabaseStorage implements IStorage {
 
   // Helper methods to map Supabase snake_case to camelCase
   private mapStudent(data: any): Student {
+    // subjects가 쉼표로 구분된 문자열이면 배열로 변환
+    let subjects: string[] | null = null;
+    if (data.subjects) {
+      if (typeof data.subjects === 'string') {
+        subjects = data.subjects.split(',').map((s: string) => s.trim()).filter((s: string) => s);
+      } else if (Array.isArray(data.subjects)) {
+        subjects = data.subjects;
+      }
+    }
+
     return {
       id: data.id?.toString() || data.id,
       studentId: data.student_id,
       name: data.student_name || data.name,
       grade: data.grade,
       parentPhone: data.phone || null,
+      subjects,
       createdAt: new Date(data.created_at || Date.now()),
     };
   }
@@ -338,7 +360,74 @@ export class SupabaseStorage implements IStorage {
       score: data.score,
       sectionScores: data.section_scores,
       assignedTasks: data.assigned_tasks,
+      specialNote: data.special_note || null,
       completedAt: new Date(data.completed_at),
     };
+  }
+
+  // 70점 미만이고 대처방안 미입력된 학생 조회
+  async getSpecialAttentionResults(): Promise<any[]> {
+    const { data: results, error } = await this.supabase
+      .from('test_results')
+      .select('*')
+      .lt('score', 70)
+      .is('special_note', null)
+      .order('completed_at', { ascending: false });
+
+    if (error) throw new Error(`Failed to get special attention results: ${error.message}`);
+
+    const allStudents = await this.getAllStudents();
+    const allTests = await this.getAllTests();
+
+    const studentsMap = new Map<string, Student>();
+    allStudents.forEach(s => studentsMap.set(s.studentId, s));
+
+    const testsMap = new Map<string, Test>();
+    allTests.forEach(t => testsMap.set(t.id, t));
+
+    return (results || []).map((r: any) => ({
+      ...this.mapTestResult(r),
+      student: studentsMap.get(r.student_id) || null,
+      test: testsMap.get(r.test_id) || null,
+    }));
+  }
+
+  // 70점 미만 전체 이력 조회 (대처방안 입력된 것 포함)
+  async getSpecialAttentionHistory(): Promise<any[]> {
+    const { data: results, error } = await this.supabase
+      .from('test_results')
+      .select('*')
+      .lt('score', 70)
+      .order('completed_at', { ascending: false });
+
+    if (error) throw new Error(`Failed to get special attention history: ${error.message}`);
+
+    const allStudents = await this.getAllStudents();
+    const allTests = await this.getAllTests();
+
+    const studentsMap = new Map<string, Student>();
+    allStudents.forEach(s => studentsMap.set(s.studentId, s));
+
+    const testsMap = new Map<string, Test>();
+    allTests.forEach(t => testsMap.set(t.id, t));
+
+    return (results || []).map((r: any) => ({
+      ...this.mapTestResult(r),
+      student: studentsMap.get(r.student_id) || null,
+      test: testsMap.get(r.test_id) || null,
+    }));
+  }
+
+  // 대처방안 저장
+  async updateSpecialNote(id: string, specialNote: string): Promise<TestResult> {
+    const { data, error } = await this.supabase
+      .from('test_results')
+      .update({ special_note: specialNote })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw new Error(`Failed to update special note: ${error.message}`);
+    return this.mapTestResult(data);
   }
 }

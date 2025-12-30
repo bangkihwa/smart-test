@@ -10,6 +10,7 @@ export const students = pgTable("students", {
   name: text("name").notNull(),
   grade: text("grade").notNull(),
   parentPhone: text("parent_phone"),
+  subjects: json("subjects").$type<string[]>(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

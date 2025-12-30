@@ -25,7 +25,11 @@
       "Bash(powershell -Command:*)",
       "Bash(node -e:*)",
       "Bash(timeout:*)",
-      "Bash(ping:*)"
+      "Bash(ping:*)",
+      "Bash(find:*)",
+      "Bash(cmd /c \"taskkill /PID 30364 /F\")",
+      "Bash(LANG=en_US.UTF-8 npx vercel:*)",
+      "Bash(cmd /c \"taskkill /PID 36304 /F\")"
     ]
   }
 }

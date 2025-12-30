@@ -3,6 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertStudentSchema, insertTestSchema, insertTestResultSchema } from "@shared/schema";
 import { z } from "zod";
+import { sendTestResultSMS, sendTestSMS } from "./sms-service";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Student routes
@@ -218,6 +219,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // 특별 관리 대상 조회 (70점 미만, 대처방안 미입력) - :id 라우트보다 먼저 정의해야 함
+  app.get("/api/test-results/special-attention", async (req, res) => {
+    try {
+      const results = await storage.getSpecialAttentionResults();
+      res.json(results);
+    } catch (error) {
+      console.error("Error fetching special attention results:", error);
+      res.status(500).json({ message: "Failed to fetch special attention results" });
+    }
+  });
+
+  // 특별 관리 이력 조회 (70점 미만 전체)
+  app.get("/api/test-results/special-attention-history", async (req, res) => {
+    try {
+      const results = await storage.getSpecialAttentionHistory();
+      res.json(results);
+    } catch (error) {
+      console.error("Error fetching special attention history:", error);
+      res.status(500).json({ message: "Failed to fetch special attention history" });
+    }
+  });
+
+  // 대처방안 저장
+  app.put("/api/test-results/:id/special-note", async (req, res) => {
+    try {
+      const { specialNote } = req.body;
+      if (!specialNote || specialNote.trim() === '') {
+        return res.status(400).json({ message: "Special note is required" });
+      }
+      const result = await storage.updateSpecialNote(req.params.id, specialNote);
+      res.json(result);
+    } catch (error) {
+      console.error("Error updating special note:", error);
+      res.status(500).json({ message: "Failed to update special note" });
+    }
+  });
+
   app.get("/api/test-results/:id", async (req, res) => {
     try {
       const result = await storage.getTestResult(req.params.id);
@@ -333,10 +371,69 @@ export async function registerRoutes(app: Express): Promise<Server> {
       };
 
       const result = await storage.createTestResult(resultData);
+
+      // 학부모에게 SMS 발송 (비동기로 처리하여 응답 지연 방지)
+      if (student.parentPhone) {
+        // 섹션 이름 추가
+        const sectionScoresWithNames = sectionScores.map((score: any, idx: number) => ({
+          ...score,
+          sectionName: test.sections[idx]?.name || `파트${score.sectionNumber}`,
+        }));
+
+        const assignedTasksWithNames = assignedTasks.map((task: any, idx: number) => ({
+          ...task,
+          sectionName: test.sections[idx]?.name || `파트${task.sectionNumber}`,
+        }));
+
+        sendTestResultSMS(student.parentPhone, {
+          studentName: student.name,
+          testName: test.name,
+          score: finalScore,
+          totalQuestions,
+          correctAnswers: totalScore,
+          wrongAnswers: totalQuestions - totalScore,
+          sectionScores: sectionScoresWithNames,
+          assignedTasks: assignedTasksWithNames,
+          completedAt: new Date(),
+        }).then((smsResult) => {
+          if (smsResult.success) {
+            console.log(`[SMS] 성적 알림 발송 완료: ${student.name} -> ${student.parentPhone}`);
+          } else {
+            console.log(`[SMS] 성적 알림 발송 실패: ${smsResult.error}`);
+          }
+        }).catch((err) => {
+          console.error('[SMS] 발송 중 오류:', err);
+        });
+      } else {
+        console.log(`[SMS] 학부모 전화번호 없음: ${student.name}`);
+      }
+
       res.status(201).json(result);
     } catch (error) {
       console.error("Error submitting test:", error);
       res.status(500).json({ message: "Failed to submit test" });
+    }
+  });
+
+  // SMS 테스트 엔드포인트
+  app.post("/api/sms/test", async (req, res) => {
+    try {
+      const { phone, message } = req.body;
+
+      if (!phone || !message) {
+        return res.status(400).json({ message: "Phone and message are required" });
+      }
+
+      const result = await sendTestSMS(phone, message);
+
+      if (result.success) {
+        res.json({ success: true, message: "SMS sent successfully" });
+      } else {
+        res.status(500).json({ success: false, error: result.error });
+      }
+    } catch (error) {
+      console.error("Error sending test SMS:", error);
+      res.status(500).json({ message: "Failed to send SMS" });
     }
   });
 

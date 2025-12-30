@@ -4,6 +4,7 @@ export interface Student {
   name: string;
   grade: string;
   parentPhone?: string | null;
+  subjects?: string[] | null;
   createdAt: string;
 }
 
