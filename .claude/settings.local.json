@@ -29,7 +29,9 @@
       "Bash(find:*)",
       "Bash(cmd /c \"taskkill /PID 30364 /F\")",
       "Bash(LANG=en_US.UTF-8 npx vercel:*)",
-      "Bash(cmd /c \"taskkill /PID 36304 /F\")"
+      "Bash(cmd /c \"taskkill /PID 36304 /F\")",
+      "Bash(start https://vercel.com/account/tokens)",
+      "Bash(start \"https://vercel.com/bangkihwa/smart-test/settings/environment-variables\")"
     ]
   }
 }

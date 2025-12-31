@@ -90,7 +90,7 @@ export default function AdminDashboard() {
         assignments: { 
           light: '시험지에 오답문제 정리해오기', 
           medium: '수업노트 필기 다시하고 오답문제 정리하기', 
-          heavy: '동영상수업 내용복습이후고 수업노트필기 1번필기하고 오답문제들에 알가나뭍 적어오기' 
+          heavy: '동영상 수업 내용복습, 수업노트 필기, 오답정리해오기' 
         }
       },
       {
@@ -101,7 +101,7 @@ export default function AdminDashboard() {
         assignments: { 
           light: '시험지에 오답문제 정리해오기', 
           medium: '수업노트 필기 다시하고 오답문제 정리하기', 
-          heavy: '동영상수업 내용복습이후고 수업노트필기 1번필기하고 오답문제들에 알가나뭍 적어오기' 
+          heavy: '동영상 수업 내용복습, 수업노트 필기, 오답정리해오기' 
         }
       },
       {
@@ -112,7 +112,7 @@ export default function AdminDashboard() {
         assignments: { 
           light: '시험지에 오답문제 정리해오기', 
           medium: '수업노트 필기 다시하고 오답문제 정리하기', 
-          heavy: '동영상수업 내용복습이후고 수업노트필기 1번필기하고 오답문제들에 알가나뭍 적어오기' 
+          heavy: '동영상 수업 내용복습, 수업노트 필기, 오답정리해오기' 
         }
       }
     ]
@@ -267,7 +267,7 @@ export default function AdminDashboard() {
           assignments: { 
             light: '시험지에 오답문제 정리해오기', 
             medium: '수업노트 필기 다시하고 오답문제 정리하기', 
-            heavy: '동영상수업 내용복습이후고 수업노트필기 1번필기하고 오답문제들에 알가나뭍 적어오기' 
+            heavy: '동영상 수업 내용복습, 수업노트 필기, 오답정리해오기' 
           }
         },
         {
@@ -278,7 +278,7 @@ export default function AdminDashboard() {
           assignments: { 
             light: '시험지에 오답문제 정리해오기', 
             medium: '수업노트 필기 다시하고 오답문제 정리하기', 
-            heavy: '동영상수업 내용복습이후고 수업노트필기 1번필기하고 오답문제들에 알가나뭍 적어오기' 
+            heavy: '동영상 수업 내용복습, 수업노트 필기, 오답정리해오기' 
           }
         },
         {
@@ -289,7 +289,7 @@ export default function AdminDashboard() {
           assignments: { 
             light: '시험지에 오답문제 정리해오기', 
             medium: '수업노트 필기 다시하고 오답문제 정리하기', 
-            heavy: '동영상수업 내용복습이후고 수업노트필기 1번필기하고 오답문제들에 알가나뭍 적어오기' 
+            heavy: '동영상 수업 내용복습, 수업노트 필기, 오답정리해오기' 
           }
         }
       ]
