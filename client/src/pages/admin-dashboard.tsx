@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { BarChart3, TrendingUp, Search, AlertTriangle, History } from "lucide-react";
+import { BarChart3, TrendingUp, Search, AlertTriangle, History, MessageSquare } from "lucide-react";
 
 // 과목 목록 (Supabase에 한글로 저장)
 const SUBJECTS = [
@@ -29,7 +29,7 @@ import type { Student, Test, TestResult, GradeLevel } from "@/lib/types";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { format } from 'date-fns';
 
-type AdminView = 'dashboard' | 'students' | 'tests' | 'results' | 'analysis' | 'special';
+type AdminView = 'dashboard' | 'students' | 'tests' | 'results' | 'analysis' | 'special' | 'sms';
 
 export default function AdminDashboard() {
   const { toast } = useToast();
@@ -52,6 +52,10 @@ export default function AdminDashboard() {
   // Student list search
   const [studentSearch, setStudentSearch] = useState('');
 
+  // Results view - test selection
+  const [selectedGradeForResults, setSelectedGradeForResults] = useState<string>('');
+  const [selectedTestIdForResults, setSelectedTestIdForResults] = useState<string>('');
+
   // Fetch data
   const { data: students } = useQuery<Student[]>({ queryKey: ['/api/students'] });
   const { data: tests } = useQuery<Test[]>({ queryKey: ['/api/tests'] });
@@ -65,6 +69,12 @@ export default function AdminDashboard() {
   const { data: specialAttentionHistory, refetch: refetchSpecialHistory } = useQuery<(TestResult & { student: Student, test: Test })[]>({
     queryKey: ['/api/test-results/special-attention-history'],
     enabled: currentView === 'special' && showHistory
+  });
+
+  // SMS 설정 데이터
+  const { data: smsSettings, refetch: refetchSmsSettings } = useQuery<any>({
+    queryKey: ['/api/sms-settings'],
+    enabled: currentView === 'sms'
   });
 
   // Student management
@@ -251,6 +261,71 @@ export default function AdminDashboard() {
     }
     saveSpecialNoteMutation.mutate({ id: resultId, specialNote: note });
   };
+
+  // SMS 설정 폼
+  const [smsSettingsForm, setSmsSettingsForm] = useState({
+    scoreMessage90: '훌륭합니다!',
+    scoreMessage80: '잘했어요!',
+    scoreMessage70: '조금만 더 노력하면 완벽해요!',
+    scoreMessage60: '조금 더 복습이 필요해요.',
+    scoreMessageBelow: '열심히 복습해주세요!',
+    sectionFeedback90: '우수',
+    sectionFeedback80: '양호',
+    sectionFeedback70: '보통',
+    sectionFeedback60: '노력',
+    sectionFeedbackBelow: '복습필요',
+    taskTypeLight: '기본',
+    taskTypeMedium: '보충',
+    taskTypeHeavy: '심화',
+    defaultTaskLight: '시험지에 오답문제 정리해오기',
+    defaultTaskMedium: '수업노트 필기 다시하고 오답문제 정리하기',
+    defaultTaskHeavy: '동영상 수업 내용복습, 수업노트 필기, 오답정리해오기',
+    academyName: '목동에이원과학학원',
+  });
+
+  // SMS 설정 로드 시 폼 업데이트
+  useMemo(() => {
+    if (smsSettings && currentView === 'sms') {
+      setSmsSettingsForm({
+        scoreMessage90: smsSettings.scoreMessage90 || '훌륭합니다!',
+        scoreMessage80: smsSettings.scoreMessage80 || '잘했어요!',
+        scoreMessage70: smsSettings.scoreMessage70 || '조금만 더 노력하면 완벽해요!',
+        scoreMessage60: smsSettings.scoreMessage60 || '조금 더 복습이 필요해요.',
+        scoreMessageBelow: smsSettings.scoreMessageBelow || '열심히 복습해주세요!',
+        sectionFeedback90: smsSettings.sectionFeedback90 || '우수',
+        sectionFeedback80: smsSettings.sectionFeedback80 || '양호',
+        sectionFeedback70: smsSettings.sectionFeedback70 || '보통',
+        sectionFeedback60: smsSettings.sectionFeedback60 || '노력',
+        sectionFeedbackBelow: smsSettings.sectionFeedbackBelow || '복습필요',
+        taskTypeLight: smsSettings.taskTypeLight || '기본',
+        taskTypeMedium: smsSettings.taskTypeMedium || '보충',
+        taskTypeHeavy: smsSettings.taskTypeHeavy || '심화',
+        defaultTaskLight: smsSettings.defaultTaskLight || '시험지에 오답문제 정리해오기',
+        defaultTaskMedium: smsSettings.defaultTaskMedium || '수업노트 필기 다시하고 오답문제 정리하기',
+        defaultTaskHeavy: smsSettings.defaultTaskHeavy || '동영상 수업 내용복습, 수업노트 필기, 오답정리해오기',
+        academyName: smsSettings.academyName || '목동에이원과학학원',
+      });
+    }
+  }, [smsSettings, currentView]);
+
+  // SMS 설정 저장 mutation
+  const saveSmsSettingsMutation = useMutation({
+    mutationFn: async (settings: typeof smsSettingsForm) => {
+      const response = await apiRequest('PUT', '/api/sms-settings', settings);
+      return await response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/sms-settings'] });
+      toast({ title: "SMS 설정이 저장되었습니다." });
+    },
+    onError: () => {
+      toast({
+        title: "SMS 설정 저장 실패",
+        description: "다시 시도해주세요.",
+        variant: "destructive"
+      });
+    },
+  });
 
   const resetTestForm = () => {
     setTestForm({
@@ -914,12 +989,11 @@ export default function AdminDashboard() {
                     <SelectValue placeholder="과목 선택" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="통합과학 중1">통합과학 중1</SelectItem>
-                    <SelectItem value="통합과학 중2">통합과학 중2</SelectItem>
-                    <SelectItem value="통합과학 중3">통합과학 중3</SelectItem>
-                    <SelectItem value="화학">화학</SelectItem>
-                    <SelectItem value="생물">생물</SelectItem>
+                    <SelectItem value="내신대비">내신대비</SelectItem>
+                    <SelectItem value="통합과학">통합과학</SelectItem>
                     <SelectItem value="물리">물리</SelectItem>
+                    <SelectItem value="화학">화학</SelectItem>
+                    <SelectItem value="생명">생명</SelectItem>
                     <SelectItem value="지구과학">지구과학</SelectItem>
                   </SelectContent>
                 </Select>
@@ -1149,63 +1223,197 @@ export default function AdminDashboard() {
     </div>
   );
 
-  const renderResults = () => (
-    <div className="p-6 lg:p-8">
-      <div className="mb-8">
-        <h2 className="text-3xl font-bold text-foreground mb-2">성적 조회</h2>
-        <p className="text-muted-foreground">학생별, 테스트별로 성적을 조회하고 출력할 수 있습니다</p>
-      </div>
+  const renderResults = () => {
+    // 선택된 테스트의 결과만 필터링하고 성적순으로 정렬
+    const filteredAndSortedResults = selectedTestIdForResults
+      ? testResults
+          ?.filter((result: TestResult) => result.testId === selectedTestIdForResults)
+          .sort((a, b) => b.score - a.score) // 성적 높은 순
+      : [];
 
-      <Card>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>날짜</TableHead>
-                <TableHead>학생</TableHead>
-                <TableHead>테스트</TableHead>
-                <TableHead>점수</TableHead>
-                <TableHead>오답 수</TableHead>
-                <TableHead>과제 유형</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {testResults?.map((result: TestResult) => {
-                const totalErrors = result.sectionScores.reduce((sum: number, section: any) => sum + section.wrongAnswers.length, 0);
-                const maxTaskType = result.assignedTasks.reduce((max: string, task: any) =>
-                  task.taskType === 'heavy' ? 'heavy' :
-                  task.taskType === 'medium' && max !== 'heavy' ? 'medium' :
-                  max === '' ? 'light' : max, '');
+    // 선택된 테스트 정보
+    const selectedTest = tests?.find((t: Test) => t.id === selectedTestIdForResults);
 
-                return (
-                  <TableRow key={result.id}>
-                    <TableCell>{new Date(result.completedAt).toLocaleDateString()}</TableCell>
-                    <TableCell className="font-medium">{result.student?.name || '알 수 없음'}</TableCell>
-                    <TableCell>{result.test?.name || '알 수 없음'}</TableCell>
-                    <TableCell>
-                      <Badge variant={result.score >= 80 ? 'default' : result.score >= 60 ? 'secondary' : 'destructive'}>
-                        {result.score}점
-                      </Badge>
-                    </TableCell>
-                    <TableCell>{totalErrors}개</TableCell>
-                    <TableCell>
-                      <Badge variant={
-                        maxTaskType === 'heavy' ? 'destructive' : 
-                        maxTaskType === 'medium' ? 'secondary' : 
-                        'default'
-                      }>
-                        {maxTaskType === 'heavy' ? '심화' : maxTaskType === 'medium' ? '중급' : '기본'}
-                      </Badge>
-                    </TableCell>
+    // 통계 계산
+    const stats = filteredAndSortedResults && filteredAndSortedResults.length > 0 ? {
+      totalStudents: filteredAndSortedResults.length,
+      avgScore: Math.round(filteredAndSortedResults.reduce((sum, r) => sum + r.score, 0) / filteredAndSortedResults.length * 10) / 10,
+      maxScore: Math.max(...filteredAndSortedResults.map(r => r.score)),
+      minScore: Math.min(...filteredAndSortedResults.map(r => r.score)),
+    } : null;
+
+    return (
+      <div className="p-6 lg:p-8">
+        <div className="mb-8">
+          <h2 className="text-3xl font-bold text-foreground mb-2">성적 조회</h2>
+          <p className="text-muted-foreground">테스트를 선택하면 응시한 학생들의 성적을 순위별로 확인할 수 있습니다</p>
+        </div>
+
+        {/* 학년 및 테스트 선택 */}
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle>테스트 선택</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium mb-2">학년 선택</label>
+                <Select
+                  value={selectedGradeForResults}
+                  onValueChange={(value) => {
+                    setSelectedGradeForResults(value);
+                    setSelectedTestIdForResults(''); // 학년 변경시 테스트 선택 초기화
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="학년을 먼저 선택하세요" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="중등1학년">중등1학년</SelectItem>
+                    <SelectItem value="중등2학년">중등2학년</SelectItem>
+                    <SelectItem value="중등3학년">중등3학년</SelectItem>
+                    <SelectItem value="고등1학년">고등1학년</SelectItem>
+                    <SelectItem value="고등2학년">고등2학년</SelectItem>
+                    <SelectItem value="고등3학년">고등3학년</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-2">테스트 선택</label>
+                <Select
+                  value={selectedTestIdForResults}
+                  onValueChange={setSelectedTestIdForResults}
+                  disabled={!selectedGradeForResults}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder={selectedGradeForResults ? "테스트를 선택하세요" : "학년을 먼저 선택하세요"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {tests
+                      ?.filter((test: Test) => test.grade === selectedGradeForResults)
+                      .map((test: Test) => (
+                        <SelectItem key={test.id} value={test.id}>
+                          {test.name} ({test.subject})
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* 통계 카드 */}
+        {stats && selectedTest && (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+            <Card>
+              <CardContent className="pt-6">
+                <div className="text-2xl font-bold text-primary">{stats.totalStudents}명</div>
+                <div className="text-sm text-muted-foreground">응시 인원</div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-6">
+                <div className="text-2xl font-bold text-blue-600">{stats.avgScore}점</div>
+                <div className="text-sm text-muted-foreground">평균 점수</div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-6">
+                <div className="text-2xl font-bold text-green-600">{stats.maxScore}점</div>
+                <div className="text-sm text-muted-foreground">최고 점수</div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-6">
+                <div className="text-2xl font-bold text-red-600">{stats.minScore}점</div>
+                <div className="text-sm text-muted-foreground">최저 점수</div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {/* 결과 테이블 */}
+        <Card>
+          <CardHeader>
+            <CardTitle>
+              {selectedTest ? `${selectedTest.name} - 성적 순위` : '테스트를 선택해주세요'}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {!selectedTestIdForResults ? (
+              <div className="text-center py-12 text-muted-foreground">
+                위에서 테스트를 선택하면 응시 학생들의 성적이 표시됩니다
+              </div>
+            ) : filteredAndSortedResults && filteredAndSortedResults.length > 0 ? (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-16 text-center">순위</TableHead>
+                    <TableHead>학생 이름</TableHead>
+                    <TableHead>학번</TableHead>
+                    <TableHead>학년</TableHead>
+                    <TableHead className="text-center">점수</TableHead>
+                    <TableHead className="text-center">오답 수</TableHead>
+                    <TableHead>응시 일시</TableHead>
+                    <TableHead>과제 유형</TableHead>
                   </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-    </div>
-  );
+                </TableHeader>
+                <TableBody>
+                  {filteredAndSortedResults.map((result: TestResult, index: number) => {
+                    const totalErrors = result.sectionScores.reduce((sum: number, section: any) => sum + section.wrongAnswers.length, 0);
+                    const maxTaskType = result.assignedTasks.reduce((max: string, task: any) =>
+                      task.taskType === 'heavy' ? 'heavy' :
+                      task.taskType === 'medium' && max !== 'heavy' ? 'medium' :
+                      max === '' ? 'light' : max, '');
+
+                    // 순위 배지 색상
+                    const getRankBadge = (rank: number) => {
+                      if (rank === 1) return <Badge className="bg-yellow-500 hover:bg-yellow-600">🥇 1등</Badge>;
+                      if (rank === 2) return <Badge className="bg-gray-400 hover:bg-gray-500">🥈 2등</Badge>;
+                      if (rank === 3) return <Badge className="bg-amber-600 hover:bg-amber-700">🥉 3등</Badge>;
+                      return <Badge variant="outline">{rank}등</Badge>;
+                    };
+
+                    return (
+                      <TableRow key={result.id} className={index < 3 ? 'bg-muted/30' : ''}>
+                        <TableCell className="text-center font-bold">
+                          {getRankBadge(index + 1)}
+                        </TableCell>
+                        <TableCell className="font-medium">{result.student?.name || '알 수 없음'}</TableCell>
+                        <TableCell>{result.student?.studentId || '-'}</TableCell>
+                        <TableCell>{result.student?.grade || '-'}</TableCell>
+                        <TableCell className="text-center">
+                          <Badge variant={result.score >= 80 ? 'default' : result.score >= 60 ? 'secondary' : 'destructive'}>
+                            {result.score}점
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-center">{totalErrors}개</TableCell>
+                        <TableCell>{new Date(result.completedAt).toLocaleString()}</TableCell>
+                        <TableCell>
+                          <Badge variant={
+                            maxTaskType === 'heavy' ? 'destructive' :
+                            maxTaskType === 'medium' ? 'secondary' :
+                            'default'
+                          }>
+                            {maxTaskType === 'heavy' ? '심화' : maxTaskType === 'medium' ? '중급' : '기본'}
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            ) : (
+              <div className="text-center py-12 text-muted-foreground">
+                이 테스트를 응시한 학생이 없습니다
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    );
+  };
 
   const renderAnalysis = () => {
     // Filter students by search query for analysis
@@ -1706,6 +1914,255 @@ export default function AdminDashboard() {
     );
   };
 
+  const renderSmsSettings = () => (
+    <div className="p-6 lg:p-8">
+      <div className="mb-8">
+        <h2 className="text-3xl font-bold text-foreground mb-2 flex items-center gap-2">
+          <MessageSquare className="w-8 h-8" />
+          SMS 문자 설정
+        </h2>
+        <p className="text-muted-foreground">
+          학부모에게 발송되는 성적 알림 문자의 내용을 설정하세요
+        </p>
+      </div>
+
+      <form onSubmit={(e) => { e.preventDefault(); saveSmsSettingsMutation.mutate(smsSettingsForm); }} className="max-w-4xl space-y-6">
+        {/* 학원 정보 */}
+        <Card>
+          <CardHeader>
+            <CardTitle>학원 정보</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div>
+              <label className="block text-sm font-medium mb-2">학원명</label>
+              <Input
+                value={smsSettingsForm.academyName}
+                onChange={(e) => setSmsSettingsForm({ ...smsSettingsForm, academyName: e.target.value })}
+                placeholder="학원명을 입력하세요"
+              />
+              <p className="text-xs text-muted-foreground mt-1">문자 발송 시 "[학원명 성적알림]" 형태로 표시됩니다</p>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* 점수별 메시지 */}
+        <Card>
+          <CardHeader>
+            <CardTitle>점수별 평가 메시지</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium mb-2">90점 이상</label>
+                <Input
+                  value={smsSettingsForm.scoreMessage90}
+                  onChange={(e) => setSmsSettingsForm({ ...smsSettingsForm, scoreMessage90: e.target.value })}
+                  placeholder="훌륭합니다!"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-2">80점 이상</label>
+                <Input
+                  value={smsSettingsForm.scoreMessage80}
+                  onChange={(e) => setSmsSettingsForm({ ...smsSettingsForm, scoreMessage80: e.target.value })}
+                  placeholder="잘했어요!"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-2">70점 이상</label>
+                <Input
+                  value={smsSettingsForm.scoreMessage70}
+                  onChange={(e) => setSmsSettingsForm({ ...smsSettingsForm, scoreMessage70: e.target.value })}
+                  placeholder="조금만 더 노력하면 완벽해요!"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-2">60점 이상</label>
+                <Input
+                  value={smsSettingsForm.scoreMessage60}
+                  onChange={(e) => setSmsSettingsForm({ ...smsSettingsForm, scoreMessage60: e.target.value })}
+                  placeholder="조금 더 복습이 필요해요."
+                />
+              </div>
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium mb-2">60점 미만</label>
+                <Input
+                  value={smsSettingsForm.scoreMessageBelow}
+                  onChange={(e) => setSmsSettingsForm({ ...smsSettingsForm, scoreMessageBelow: e.target.value })}
+                  placeholder="열심히 복습해주세요!"
+                />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* 파트별 피드백 */}
+        <Card>
+          <CardHeader>
+            <CardTitle>파트별 점수 피드백</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+              <div>
+                <label className="block text-sm font-medium mb-2">90% 이상</label>
+                <Input
+                  value={smsSettingsForm.sectionFeedback90}
+                  onChange={(e) => setSmsSettingsForm({ ...smsSettingsForm, sectionFeedback90: e.target.value })}
+                  placeholder="우수"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-2">80% 이상</label>
+                <Input
+                  value={smsSettingsForm.sectionFeedback80}
+                  onChange={(e) => setSmsSettingsForm({ ...smsSettingsForm, sectionFeedback80: e.target.value })}
+                  placeholder="양호"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-2">70% 이상</label>
+                <Input
+                  value={smsSettingsForm.sectionFeedback70}
+                  onChange={(e) => setSmsSettingsForm({ ...smsSettingsForm, sectionFeedback70: e.target.value })}
+                  placeholder="보통"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-2">60% 이상</label>
+                <Input
+                  value={smsSettingsForm.sectionFeedback60}
+                  onChange={(e) => setSmsSettingsForm({ ...smsSettingsForm, sectionFeedback60: e.target.value })}
+                  placeholder="노력"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-2">60% 미만</label>
+                <Input
+                  value={smsSettingsForm.sectionFeedbackBelow}
+                  onChange={(e) => setSmsSettingsForm({ ...smsSettingsForm, sectionFeedbackBelow: e.target.value })}
+                  placeholder="복습필요"
+                />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* 과제 유형명 */}
+        <Card>
+          <CardHeader>
+            <CardTitle>과제 유형명</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm font-medium mb-2">0-2개 오답</label>
+                <Input
+                  value={smsSettingsForm.taskTypeLight}
+                  onChange={(e) => setSmsSettingsForm({ ...smsSettingsForm, taskTypeLight: e.target.value })}
+                  placeholder="기본"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-2">3-4개 오답</label>
+                <Input
+                  value={smsSettingsForm.taskTypeMedium}
+                  onChange={(e) => setSmsSettingsForm({ ...smsSettingsForm, taskTypeMedium: e.target.value })}
+                  placeholder="보충"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-2">5개 이상 오답</label>
+                <Input
+                  value={smsSettingsForm.taskTypeHeavy}
+                  onChange={(e) => setSmsSettingsForm({ ...smsSettingsForm, taskTypeHeavy: e.target.value })}
+                  placeholder="심화"
+                />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* 기본 과제 내용 */}
+        <Card>
+          <CardHeader>
+            <CardTitle>기본 과제 내용</CardTitle>
+            <p className="text-sm text-muted-foreground">테스트별 과제가 설정되지 않았을 때 사용됩니다</p>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium mb-2">0-2개 오답 과제</label>
+              <Textarea
+                value={smsSettingsForm.defaultTaskLight}
+                onChange={(e) => setSmsSettingsForm({ ...smsSettingsForm, defaultTaskLight: e.target.value })}
+                placeholder="시험지에 오답문제 정리해오기"
+                rows={2}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-2">3-4개 오답 과제</label>
+              <Textarea
+                value={smsSettingsForm.defaultTaskMedium}
+                onChange={(e) => setSmsSettingsForm({ ...smsSettingsForm, defaultTaskMedium: e.target.value })}
+                placeholder="수업노트 필기 다시하고 오답문제 정리하기"
+                rows={2}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-2">5개 이상 오답 과제</label>
+              <Textarea
+                value={smsSettingsForm.defaultTaskHeavy}
+                onChange={(e) => setSmsSettingsForm({ ...smsSettingsForm, defaultTaskHeavy: e.target.value })}
+                placeholder="동영상 수업 내용복습, 수업노트 필기, 오답정리해오기"
+                rows={2}
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* 미리보기 */}
+        <Card>
+          <CardHeader>
+            <CardTitle>문자 미리보기</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="bg-muted p-4 rounded-lg font-mono text-sm whitespace-pre-wrap">
+{`[${smsSettingsForm.academyName} 성적알림]
+
+홍길동 학생
+1주차 통합과학 결과
+
+12/31 테스트 결과
+총점: 70점
+정답: 21/30문항
+${smsSettingsForm.scoreMessage70}
+
+[파트별 성적]
+세포의 구조: 8/10 (${smsSettingsForm.sectionFeedback80})
+세포 분열: 7/10 (${smsSettingsForm.sectionFeedback70})
+DNA 구조: 6/10 (${smsSettingsForm.sectionFeedback60})
+
+[보충 과제]
+세포의 구조(${smsSettingsForm.taskTypeLight}): ${smsSettingsForm.defaultTaskLight}
+세포 분열(${smsSettingsForm.taskTypeMedium}): ${smsSettingsForm.defaultTaskMedium}
+DNA 구조(${smsSettingsForm.taskTypeHeavy}): ${smsSettingsForm.defaultTaskHeavy}
+
+문의: ${smsSettingsForm.academyName}`}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* 저장 버튼 */}
+        <Button
+          type="submit"
+          className="w-full"
+          disabled={saveSmsSettingsMutation.isPending}
+        >
+          {saveSmsSettingsMutation.isPending ? '저장 중...' : 'SMS 설정 저장'}
+        </Button>
+      </form>
+    </div>
+  );
+
   return (
     <div className="flex h-screen bg-background">
       <Navigation isAdmin />
@@ -1716,7 +2173,7 @@ export default function AdminDashboard() {
           <div className="flex items-center justify-between p-4">
             <h1 className="text-lg font-bold text-foreground">관리자</h1>
             <div className="flex space-x-1 overflow-x-auto">
-              {(['dashboard', 'students', 'tests', 'results', 'analysis', 'special'] as AdminView[]).map((view) => (
+              {(['dashboard', 'students', 'tests', 'results', 'analysis', 'special', 'sms'] as AdminView[]).map((view) => (
                 <Button
                   key={view}
                   variant={currentView === view ? "default" : "ghost"}
@@ -1728,7 +2185,8 @@ export default function AdminDashboard() {
                    view === 'students' ? '학생' :
                    view === 'tests' ? '테스트' :
                    view === 'results' ? '성적' :
-                   view === 'analysis' ? '분석' : '특별관리'}
+                   view === 'analysis' ? '분석' :
+                   view === 'special' ? '특별관리' : 'SMS설정'}
                 </Button>
               ))}
             </div>
@@ -1738,7 +2196,7 @@ export default function AdminDashboard() {
         {/* Desktop Tabs */}
         <div className="hidden md:block border-b border-border">
           <div className="flex space-x-8 px-8 pt-4">
-            {(['dashboard', 'students', 'tests', 'results', 'analysis', 'special'] as AdminView[]).map((view) => (
+            {(['dashboard', 'students', 'tests', 'results', 'analysis', 'special', 'sms'] as AdminView[]).map((view) => (
               <button
                 key={view}
                 onClick={() => setCurrentView(view)}
@@ -1753,7 +2211,8 @@ export default function AdminDashboard() {
                  view === 'students' ? '학생 관리' :
                  view === 'tests' ? '테스트 생성' :
                  view === 'results' ? '성적 조회' :
-                 view === 'analysis' ? '학생별 분석' : '특별관리'}
+                 view === 'analysis' ? '학생별 분석' :
+                 view === 'special' ? '특별관리' : 'SMS설정'}
               </button>
             ))}
           </div>
@@ -1765,6 +2224,7 @@ export default function AdminDashboard() {
         {currentView === 'results' && renderResults()}
         {currentView === 'analysis' && renderAnalysis()}
         {currentView === 'special' && renderSpecial()}
+        {currentView === 'sms' && renderSmsSettings()}
       </main>
 
       <Navigation />
