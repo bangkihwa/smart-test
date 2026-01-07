@@ -29,7 +29,7 @@ import type { Student, Test, TestResult, GradeLevel } from "@/lib/types";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { format } from 'date-fns';
 
-type AdminView = 'dashboard' | 'students' | 'tests' | 'results' | 'analysis' | 'special' | 'sms';
+type AdminView = 'dashboard' | 'students' | 'tests' | 'test-manage' | 'results' | 'analysis' | 'special' | 'sms';
 
 export default function AdminDashboard() {
   const { toast } = useToast();
@@ -55,6 +55,10 @@ export default function AdminDashboard() {
   // Results view - test selection
   const [selectedGradeForResults, setSelectedGradeForResults] = useState<string>('');
   const [selectedTestIdForResults, setSelectedTestIdForResults] = useState<string>('');
+
+  // Test list filter
+  const [testListGradeFilter, setTestListGradeFilter] = useState<string>('');
+  const [testListSubjectFilter, setTestListSubjectFilter] = useState<string>('');
 
   // Fetch data
   const { data: students } = useQuery<Student[]>({ queryKey: ['/api/students'] });
@@ -664,7 +668,7 @@ export default function AdminDashboard() {
       </div>
 
       {/* Recent Tests Table */}
-      <Card>
+      <Card className="mb-8">
         <CardHeader>
           <div className="flex items-center justify-between">
             <CardTitle>최근 테스트 결과</CardTitle>
@@ -702,6 +706,146 @@ export default function AdminDashboard() {
               })}
             </TableBody>
           </Table>
+        </CardContent>
+      </Card>
+
+      {/* 등록된 테스트 관리 */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <CardTitle>등록된 테스트 관리</CardTitle>
+              <Badge variant="secondary">{tests?.length || 0}개</Badge>
+            </div>
+            <Button variant="ghost" onClick={() => setCurrentView('tests')}>
+              테스트 생성 <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+              </svg>
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {/* 필터 */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+            <Select value={testListGradeFilter} onValueChange={setTestListGradeFilter}>
+              <SelectTrigger>
+                <SelectValue placeholder="전체 학년" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">전체 학년</SelectItem>
+                <SelectItem value="중등1학년">중등1학년</SelectItem>
+                <SelectItem value="중등2학년">중등2학년</SelectItem>
+                <SelectItem value="중등3학년">중등3학년</SelectItem>
+                <SelectItem value="고등1학년">고등1학년</SelectItem>
+                <SelectItem value="고등2학년">고등2학년</SelectItem>
+                <SelectItem value="고등3학년">고등3학년</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={testListSubjectFilter} onValueChange={setTestListSubjectFilter}>
+              <SelectTrigger>
+                <SelectValue placeholder="전체 과목" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">전체 과목</SelectItem>
+                <SelectItem value="내신대비">내신대비</SelectItem>
+                <SelectItem value="통합과학">통합과학</SelectItem>
+                <SelectItem value="물리">물리</SelectItem>
+                <SelectItem value="화학">화학</SelectItem>
+                <SelectItem value="생명">생명</SelectItem>
+                <SelectItem value="지구과학">지구과학</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setTestListGradeFilter('');
+                setTestListSubjectFilter('');
+              }}
+            >
+              필터 초기화
+            </Button>
+          </div>
+
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>테스트 ID</TableHead>
+                <TableHead>단원명</TableHead>
+                <TableHead>과목</TableHead>
+                <TableHead>학년</TableHead>
+                <TableHead className="text-right">관리</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {(() => {
+                const filteredTests = tests?.filter((test: Test) => {
+                  if (testListGradeFilter && testListGradeFilter !== 'all' && test.grade !== testListGradeFilter) return false;
+                  if (testListSubjectFilter && testListSubjectFilter !== 'all' && test.subject !== testListSubjectFilter) return false;
+                  return true;
+                }) || [];
+
+                if (filteredTests.length > 0) {
+                  return filteredTests.slice(0, 10).map((test: Test) => (
+                    <TableRow key={test.id}>
+                      <TableCell className="font-mono text-sm">{test.testId}</TableCell>
+                      <TableCell className="font-medium">{test.name}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline">{test.subject}</Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="secondary">{test.grade || '-'}</Badge>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              handleEditTest(test);
+                              setCurrentView('tests');
+                            }}
+                            title="수정"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                            </svg>
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDeleteTest(test.id)}
+                            className="text-destructive hover:text-destructive"
+                            title="삭제"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ));
+                } else {
+                  return (
+                    <TableRow>
+                      <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
+                        {tests && tests.length > 0
+                          ? '조건에 맞는 테스트가 없습니다'
+                          : '등록된 테스트가 없습니다'}
+                      </TableCell>
+                    </TableRow>
+                  );
+                }
+              })()}
+            </TableBody>
+          </Table>
+          {tests && tests.length > 10 && (
+            <div className="mt-4 text-center">
+              <Button variant="outline" onClick={() => setCurrentView('tests')}>
+                전체 {tests.length}개 테스트 보기
+              </Button>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
@@ -1156,7 +1300,65 @@ export default function AdminDashboard() {
 
       {/* Test List */}
       <div className="mt-12 max-w-4xl">
-        <h3 className="text-2xl font-bold text-foreground mb-4">등록된 테스트</h3>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-2xl font-bold text-foreground">등록된 테스트</h3>
+          <Badge variant="secondary">{tests?.length || 0}개</Badge>
+        </div>
+
+        {/* 필터 */}
+        <Card className="mb-4">
+          <CardContent className="pt-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm font-medium mb-2">학년 필터</label>
+                <Select value={testListGradeFilter} onValueChange={setTestListGradeFilter}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="전체 학년" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">전체 학년</SelectItem>
+                    <SelectItem value="중등1학년">중등1학년</SelectItem>
+                    <SelectItem value="중등2학년">중등2학년</SelectItem>
+                    <SelectItem value="중등3학년">중등3학년</SelectItem>
+                    <SelectItem value="고등1학년">고등1학년</SelectItem>
+                    <SelectItem value="고등2학년">고등2학년</SelectItem>
+                    <SelectItem value="고등3학년">고등3학년</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-2">과목 필터</label>
+                <Select value={testListSubjectFilter} onValueChange={setTestListSubjectFilter}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="전체 과목" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">전체 과목</SelectItem>
+                    <SelectItem value="내신대비">내신대비</SelectItem>
+                    <SelectItem value="통합과학">통합과학</SelectItem>
+                    <SelectItem value="물리">물리</SelectItem>
+                    <SelectItem value="화학">화학</SelectItem>
+                    <SelectItem value="생명">생명</SelectItem>
+                    <SelectItem value="지구과학">지구과학</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex items-end">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setTestListGradeFilter('');
+                    setTestListSubjectFilter('');
+                  }}
+                  className="w-full"
+                >
+                  필터 초기화
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
         <Card>
           <CardContent className="p-0">
             <Table>
@@ -1170,9 +1372,174 @@ export default function AdminDashboard() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {tests && tests.length > 0 ? (
-                  tests.map((test: Test) => (
-                    <TableRow key={test.id}>
+                {(() => {
+                  const filteredTests = tests?.filter((test: Test) => {
+                    if (testListGradeFilter && testListGradeFilter !== 'all' && test.grade !== testListGradeFilter) return false;
+                    if (testListSubjectFilter && testListSubjectFilter !== 'all' && test.subject !== testListSubjectFilter) return false;
+                    return true;
+                  }) || [];
+
+                  if (filteredTests.length > 0) {
+                    return filteredTests.map((test: Test) => (
+                      <TableRow key={test.id} className={editingTest?.id === test.id ? 'bg-primary/10' : ''}>
+                        <TableCell className="font-mono text-sm">{test.testId}</TableCell>
+                        <TableCell className="font-medium">{test.name}</TableCell>
+                        <TableCell>
+                          <Badge variant="outline">{test.subject}</Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="secondary">{test.grade || '-'}</Badge>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex justify-end gap-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleEditTest(test)}
+                              data-testid={`edit-test-${test.id}`}
+                              title="수정"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                              </svg>
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleDeleteTest(test.id)}
+                              className="text-destructive hover:text-destructive"
+                              data-testid={`delete-test-${test.id}`}
+                              title="삭제"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                              </svg>
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ));
+                  } else {
+                    return (
+                      <TableRow>
+                        <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
+                          {tests && tests.length > 0
+                            ? '조건에 맞는 테스트가 없습니다'
+                            : '등록된 테스트가 없습니다'}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  }
+                })()}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+
+  const renderTestManage = () => {
+    const filteredTests = tests?.filter((test: Test) => {
+      if (testListGradeFilter && testListGradeFilter !== 'all' && test.grade !== testListGradeFilter) return false;
+      if (testListSubjectFilter && testListSubjectFilter !== 'all' && test.subject !== testListSubjectFilter) return false;
+      return true;
+    }) || [];
+
+    return (
+      <div className="p-6 lg:p-8">
+        <div className="mb-8">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-3xl font-bold text-foreground mb-2">테스트 관리</h2>
+              <p className="text-muted-foreground">등록된 테스트를 조회, 수정, 삭제할 수 있습니다</p>
+            </div>
+            <Button onClick={() => setCurrentView('tests')}>
+              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+              </svg>
+              새 테스트 생성
+            </Button>
+          </div>
+        </div>
+
+        {/* 필터 */}
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle className="flex items-center justify-between">
+              <span>필터</span>
+              <Badge variant="secondary">총 {tests?.length || 0}개 / 필터 결과 {filteredTests.length}개</Badge>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm font-medium mb-2">학년</label>
+                <Select value={testListGradeFilter} onValueChange={setTestListGradeFilter}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="전체 학년" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">전체 학년</SelectItem>
+                    <SelectItem value="중등1학년">중등1학년</SelectItem>
+                    <SelectItem value="중등2학년">중등2학년</SelectItem>
+                    <SelectItem value="중등3학년">중등3학년</SelectItem>
+                    <SelectItem value="고등1학년">고등1학년</SelectItem>
+                    <SelectItem value="고등2학년">고등2학년</SelectItem>
+                    <SelectItem value="고등3학년">고등3학년</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-2">과목</label>
+                <Select value={testListSubjectFilter} onValueChange={setTestListSubjectFilter}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="전체 과목" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">전체 과목</SelectItem>
+                    <SelectItem value="내신대비">내신대비</SelectItem>
+                    <SelectItem value="통합과학">통합과학</SelectItem>
+                    <SelectItem value="물리">물리</SelectItem>
+                    <SelectItem value="화학">화학</SelectItem>
+                    <SelectItem value="생명">생명</SelectItem>
+                    <SelectItem value="지구과학">지구과학</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex items-end">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setTestListGradeFilter('');
+                    setTestListSubjectFilter('');
+                  }}
+                  className="w-full"
+                >
+                  필터 초기화
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* 테스트 목록 */}
+        <Card>
+          <CardContent className="p-0">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>테스트 ID</TableHead>
+                  <TableHead>단원명</TableHead>
+                  <TableHead>과목</TableHead>
+                  <TableHead>학년</TableHead>
+                  <TableHead className="text-right">관리</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredTests.length > 0 ? (
+                  filteredTests.map((test: Test) => (
+                    <TableRow key={test.id} className={editingTest?.id === test.id ? 'bg-primary/10' : ''}>
                       <TableCell className="font-mono text-sm">{test.testId}</TableCell>
                       <TableCell className="font-medium">{test.name}</TableCell>
                       <TableCell>
@@ -1184,25 +1551,29 @@ export default function AdminDashboard() {
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
                           <Button
-                            variant="ghost"
+                            variant="outline"
                             size="sm"
-                            onClick={() => handleEditTest(test)}
-                            data-testid={`edit-test-${test.id}`}
+                            onClick={() => {
+                              handleEditTest(test);
+                              setCurrentView('tests');
+                            }}
+                            title="수정"
                           >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                             </svg>
+                            수정
                           </Button>
                           <Button
-                            variant="ghost"
+                            variant="destructive"
                             size="sm"
                             onClick={() => handleDeleteTest(test.id)}
-                            className="text-destructive hover:text-destructive"
-                            data-testid={`delete-test-${test.id}`}
+                            title="삭제"
                           >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                             </svg>
+                            삭제
                           </Button>
                         </div>
                       </TableCell>
@@ -1210,8 +1581,10 @@ export default function AdminDashboard() {
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
-                      등록된 테스트가 없습니다
+                    <TableCell colSpan={5} className="text-center text-muted-foreground py-12">
+                      {tests && tests.length > 0
+                        ? '조건에 맞는 테스트가 없습니다'
+                        : '등록된 테스트가 없습니다'}
                     </TableCell>
                   </TableRow>
                 )}
@@ -1220,8 +1593,8 @@ export default function AdminDashboard() {
           </CardContent>
         </Card>
       </div>
-    </div>
-  );
+    );
+  };
 
   const renderResults = () => {
     // 선택된 테스트의 결과만 필터링하고 성적순으로 정렬
@@ -2173,7 +2546,7 @@ DNA 구조(${smsSettingsForm.taskTypeHeavy}): ${smsSettingsForm.defaultTaskHeavy
           <div className="flex items-center justify-between p-4">
             <h1 className="text-lg font-bold text-foreground">관리자</h1>
             <div className="flex space-x-1 overflow-x-auto">
-              {(['dashboard', 'students', 'tests', 'results', 'analysis', 'special', 'sms'] as AdminView[]).map((view) => (
+              {(['dashboard', 'students', 'tests', 'test-manage', 'results', 'analysis', 'special', 'sms'] as AdminView[]).map((view) => (
                 <Button
                   key={view}
                   variant={currentView === view ? "default" : "ghost"}
@@ -2183,7 +2556,8 @@ DNA 구조(${smsSettingsForm.taskTypeHeavy}): ${smsSettingsForm.defaultTaskHeavy
                 >
                   {view === 'dashboard' ? '대시보드' :
                    view === 'students' ? '학생' :
-                   view === 'tests' ? '테스트' :
+                   view === 'tests' ? '테스트생성' :
+                   view === 'test-manage' ? '테스트관리' :
                    view === 'results' ? '성적' :
                    view === 'analysis' ? '분석' :
                    view === 'special' ? '특별관리' : 'SMS설정'}
@@ -2196,7 +2570,7 @@ DNA 구조(${smsSettingsForm.taskTypeHeavy}): ${smsSettingsForm.defaultTaskHeavy
         {/* Desktop Tabs */}
         <div className="hidden md:block border-b border-border">
           <div className="flex space-x-8 px-8 pt-4">
-            {(['dashboard', 'students', 'tests', 'results', 'analysis', 'special', 'sms'] as AdminView[]).map((view) => (
+            {(['dashboard', 'students', 'tests', 'test-manage', 'results', 'analysis', 'special', 'sms'] as AdminView[]).map((view) => (
               <button
                 key={view}
                 onClick={() => setCurrentView(view)}
@@ -2210,6 +2584,7 @@ DNA 구조(${smsSettingsForm.taskTypeHeavy}): ${smsSettingsForm.defaultTaskHeavy
                 {view === 'dashboard' ? '대시보드' :
                  view === 'students' ? '학생 관리' :
                  view === 'tests' ? '테스트 생성' :
+                 view === 'test-manage' ? '테스트 관리' :
                  view === 'results' ? '성적 조회' :
                  view === 'analysis' ? '학생별 분석' :
                  view === 'special' ? '특별관리' : 'SMS설정'}
@@ -2221,6 +2596,7 @@ DNA 구조(${smsSettingsForm.taskTypeHeavy}): ${smsSettingsForm.defaultTaskHeavy
         {currentView === 'dashboard' && renderDashboard()}
         {currentView === 'students' && renderStudents()}
         {currentView === 'tests' && renderTests()}
+        {currentView === 'test-manage' && renderTestManage()}
         {currentView === 'results' && renderResults()}
         {currentView === 'analysis' && renderAnalysis()}
         {currentView === 'special' && renderSpecial()}
