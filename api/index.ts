@@ -7,9 +7,14 @@ const solapiApiKey = process.env.SOLAPI_API_KEY || '';
 const solapiApiSecret = process.env.SOLAPI_API_SECRET || '';
 const senderPhone = process.env.SOLAPI_SENDER_PHONE || '';
 
+console.log('[SMS 초기화] API_KEY 존재:', !!solapiApiKey, 'API_SECRET 존재:', !!solapiApiSecret, 'SENDER_PHONE:', senderPhone);
+
 let messageService: SolapiMessageService | null = null;
 if (solapiApiKey && solapiApiSecret) {
   messageService = new SolapiMessageService(solapiApiKey, solapiApiSecret);
+  console.log('[SMS 초기화] messageService 생성 완료');
+} else {
+  console.log('[SMS 초기화] API 키 없음 - messageService 생성 안됨');
 }
 
 const supabaseUrl = process.env.SUPABASE_URL!;
@@ -584,8 +589,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       if (error) throw error;
 
-      // 학부모에게 SMS 발송 (비동기 - 응답 지연 방지)
+      // 학부모에게 SMS 발송 (동기 처리 - Vercel에서 비동기는 응답 후 끊김)
       const student = mapStudent(studentData);
+      let smsResult = { success: false, error: 'Not attempted' };
+
       if (student.parentPhone) {
         const sectionScoresWithNames = sectionScores.map((score: any, idx: number) => ({
           ...score,
@@ -607,20 +614,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           assignedTasksWithNames
         );
 
-        sendSMS(student.parentPhone, smsMessage)
-          .then((result) => {
-            if (result.success) {
-              console.log(`[SMS] 성적 알림 발송 완료: ${student.name} -> ${student.parentPhone}`);
-            } else {
-              console.log(`[SMS] 성적 알림 발송 실패: ${result.error}`);
-            }
-          })
-          .catch((err) => console.error('[SMS] 발송 중 오류:', err));
+        try {
+          smsResult = await sendSMS(student.parentPhone, smsMessage);
+          if (smsResult.success) {
+            console.log(`[SMS] 성적 알림 발송 완료: ${student.name} -> ${student.parentPhone}`);
+          } else {
+            console.log(`[SMS] 성적 알림 발송 실패: ${smsResult.error}`);
+          }
+        } catch (err: any) {
+          console.error('[SMS] 발송 중 오류:', err);
+          smsResult = { success: false, error: err.message };
+        }
       } else {
         console.log(`[SMS] 학부모 전화번호 없음: ${student.name}`);
       }
 
-      return res.status(201).json(mapTestResult(data));
+      return res.status(201).json({ ...mapTestResult(data), smsResult });
     }
 
     // Update special note for test result (대처방안 저장)
@@ -698,6 +707,67 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }));
 
       return res.json(resultsWithRelations);
+    }
+
+    // Get test statistics (응시자 수, 평균, 상위 5명 랭킹)
+    if (path.match(/^\/test-results\/statistics\/([a-f0-9-]+)$/) && method === 'GET') {
+      const testId = path.split('/').pop();
+
+      // 해당 테스트의 모든 결과 조회
+      const { data: results, error: resultsError } = await supabase
+        .from('test_results')
+        .select('*')
+        .eq('test_id', testId)
+        .order('score', { ascending: false });
+
+      if (resultsError) throw resultsError;
+
+      if (!results || results.length === 0) {
+        return res.json({
+          totalStudents: 0,
+          averageScore: 0,
+          topRankers: [],
+        });
+      }
+
+      // 학생 정보 조회
+      const { data: students } = await supabase.from('students').select('*');
+      const studentsMap = new Map();
+      (students || []).forEach((s: any) => {
+        studentsMap.set(s.student_id, mapStudent(s));
+      });
+
+      // 통계 계산
+      const totalStudents = results.length;
+      const totalScore = results.reduce((sum: number, r: any) => sum + r.score, 0);
+      const averageScore = Math.round(totalScore / totalStudents);
+
+      // 상위 5명 (이름 마스킹: 가운데 글자만 표시)
+      const topRankers = results.slice(0, 5).map((r: any, idx: number) => {
+        const student = studentsMap.get(r.student_id);
+        let maskedName = '***';
+        if (student?.name) {
+          const name = student.name;
+          if (name.length === 2) {
+            maskedName = name[0] + '*';
+          } else if (name.length === 3) {
+            maskedName = '*' + name[1] + '*';
+          } else if (name.length >= 4) {
+            maskedName = '*' + name.slice(1, -1) + '*';
+          }
+        }
+        return {
+          rank: idx + 1,
+          maskedName,
+          score: r.score,
+        };
+      });
+
+      return res.json({
+        totalStudents,
+        averageScore,
+        topRankers,
+      });
     }
 
     return res.status(404).json({ message: 'Not found' });

@@ -12,6 +12,16 @@ interface TestResultWithTest extends TestResult {
   test?: Test;
 }
 
+interface TestStatistics {
+  totalStudents: number;
+  averageScore: number;
+  topRankers: Array<{
+    rank: number;
+    maskedName: string;
+    score: number;
+  }>;
+}
+
 // Circular Progress Component
 function CircularProgress({ value, size = 120, strokeWidth = 10, color = "#3b82f6" }: {
   value: number;
@@ -117,6 +127,17 @@ export default function TestResults() {
 
   const result = resultData;
   const test = resultData?.test;
+
+  // 테스트 통계 조회
+  const { data: statistics } = useQuery<TestStatistics>({
+    queryKey: ['/api/test-results/statistics', test?.id],
+    queryFn: async () => {
+      const response = await fetch(`/api/test-results/statistics/${test?.id}`);
+      if (!response.ok) throw new Error('Failed to fetch statistics');
+      return response.json();
+    },
+    enabled: !!test?.id,
+  });
 
   if (isLoading) {
     return (
@@ -303,6 +324,84 @@ export default function TestResults() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Test Statistics - 응시 현황 및 랭킹 */}
+        {statistics && statistics.totalStudents > 0 && (
+          <Card className="overflow-hidden border-0 shadow-lg">
+            <CardContent className="p-6">
+              <h3 className="text-lg font-bold mb-4 flex items-center">
+                <span className="w-8 h-8 bg-amber-100 dark:bg-amber-900/30 rounded-lg flex items-center justify-center mr-3">
+                  🏆
+                </span>
+                응시 현황 및 랭킹
+              </h3>
+
+              {/* 통계 요약 */}
+              <div className="grid grid-cols-2 gap-4 mb-6">
+                <div className="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/30 dark:to-blue-800/30 rounded-xl p-4 text-center">
+                  <div className="text-3xl font-bold text-blue-600 dark:text-blue-400">{statistics.totalStudents}</div>
+                  <div className="text-sm text-blue-600/70 dark:text-blue-400/70">응시 학생수</div>
+                </div>
+                <div className="bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/30 dark:to-green-800/30 rounded-xl p-4 text-center">
+                  <div className="text-3xl font-bold text-green-600 dark:text-green-400">{statistics.averageScore}점</div>
+                  <div className="text-sm text-green-600/70 dark:text-green-400/70">평균 점수</div>
+                </div>
+              </div>
+
+              {/* 상위 5명 랭킹 */}
+              <div className="bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 rounded-xl p-4">
+                <h4 className="text-sm font-semibold text-amber-700 dark:text-amber-400 mb-3 flex items-center">
+                  <span className="mr-2">👑</span> TOP 5 랭킹
+                </h4>
+                <div className="space-y-2">
+                  {statistics.topRankers.map((ranker) => (
+                    <div
+                      key={ranker.rank}
+                      className={`flex items-center justify-between p-3 rounded-lg ${
+                        ranker.rank === 1
+                          ? 'bg-gradient-to-r from-yellow-100 to-amber-100 dark:from-yellow-900/40 dark:to-amber-900/40'
+                          : ranker.rank === 2
+                          ? 'bg-gradient-to-r from-gray-100 to-slate-100 dark:from-gray-800/40 dark:to-slate-800/40'
+                          : ranker.rank === 3
+                          ? 'bg-gradient-to-r from-orange-100 to-amber-100 dark:from-orange-900/40 dark:to-amber-900/40'
+                          : 'bg-white/50 dark:bg-gray-800/30'
+                      }`}
+                    >
+                      <div className="flex items-center space-x-3">
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
+                          ranker.rank === 1
+                            ? 'bg-yellow-400 text-yellow-900'
+                            : ranker.rank === 2
+                            ? 'bg-gray-300 text-gray-700'
+                            : ranker.rank === 3
+                            ? 'bg-orange-400 text-orange-900'
+                            : 'bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-300'
+                        }`}>
+                          {ranker.rank}
+                        </div>
+                        <span className="font-medium">{ranker.maskedName}</span>
+                      </div>
+                      <div className="flex items-center">
+                        <span className={`font-bold text-lg ${
+                          ranker.rank === 1
+                            ? 'text-yellow-600 dark:text-yellow-400'
+                            : ranker.rank === 2
+                            ? 'text-gray-600 dark:text-gray-400'
+                            : ranker.rank === 3
+                            ? 'text-orange-600 dark:text-orange-400'
+                            : 'text-gray-600 dark:text-gray-400'
+                        }`}>
+                          {ranker.score}
+                        </span>
+                        <span className="text-sm text-muted-foreground ml-1">점</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Detailed Section Results */}
         <div className="space-y-4">

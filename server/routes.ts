@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertStudentSchema, insertTestSchema, insertTestResultSchema } from "@shared/schema";
+import { insertStudentSchema, insertTestSchema, insertTestResultSchema, insertSmsSettingsSchema } from "@shared/schema";
 import { z } from "zod";
 import { sendTestResultSMS, sendTestSMS } from "./sms-service";
 
@@ -385,6 +385,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           sectionName: test.sections[idx]?.name || `파트${task.sectionNumber}`,
         }));
 
+        // SMS 설정 가져오기
+        const smsSettings = await storage.getSmsSettings();
+
         sendTestResultSMS(student.parentPhone, {
           studentName: student.name,
           testName: test.name,
@@ -395,6 +398,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           sectionScores: sectionScoresWithNames,
           assignedTasks: assignedTasksWithNames,
           completedAt: new Date(),
+          smsSettings,
         }).then((smsResult) => {
           if (smsResult.success) {
             console.log(`[SMS] 성적 알림 발송 완료: ${student.name} -> ${student.parentPhone}`);
@@ -452,6 +456,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(results);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch test results" });
+    }
+  });
+
+  // SMS 설정 API
+  app.get("/api/sms-settings", async (req, res) => {
+    try {
+      const settings = await storage.getSmsSettings();
+      if (!settings) {
+        // 기본값 반환
+        res.json({
+          scoreMessage90: '훌륭합니다!',
+          scoreMessage80: '잘했어요!',
+          scoreMessage70: '조금만 더 노력하면 완벽해요!',
+          scoreMessage60: '조금 더 복습이 필요해요.',
+          scoreMessageBelow: '열심히 복습해주세요!',
+          sectionFeedback90: '우수',
+          sectionFeedback80: '양호',
+          sectionFeedback70: '보통',
+          sectionFeedback60: '노력',
+          sectionFeedbackBelow: '복습필요',
+          taskTypeLight: '기본',
+          taskTypeMedium: '보충',
+          taskTypeHeavy: '심화',
+          defaultTaskLight: '시험지에 오답문제 정리해오기',
+          defaultTaskMedium: '수업노트 필기 다시하고 오답문제 정리하기',
+          defaultTaskHeavy: '동영상 수업 내용복습, 수업노트 필기, 오답정리해오기',
+          academyName: '목동에이원과학학원',
+        });
+        return;
+      }
+      res.json(settings);
+    } catch (error) {
+      console.error("Error fetching SMS settings:", error);
+      res.status(500).json({ message: "Failed to fetch SMS settings" });
+    }
+  });
+
+  app.put("/api/sms-settings", async (req, res) => {
+    try {
+      const settings = await storage.updateSmsSettings(req.body);
+      res.json(settings);
+    } catch (error) {
+      console.error("Error updating SMS settings:", error);
+      res.status(500).json({ message: "Failed to update SMS settings" });
     }
   });
 

@@ -9,3 +9,4 @@ vite.config.ts.*
 .local/
 nul
 .vercel
+.env*.local

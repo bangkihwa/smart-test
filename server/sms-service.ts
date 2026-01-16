@@ -1,4 +1,5 @@
 import { SolapiMessageService } from 'solapi';
+import type { SmsSettings } from '@shared/schema';
 
 // 솔라피 메시지 서비스 초기화
 const messageService = new SolapiMessageService(
@@ -30,33 +31,69 @@ interface TestResultSMS {
     task: string;
   }>;
   completedAt: Date;
+  smsSettings?: SmsSettings | null;
 }
 
+// 기본 SMS 설정값
+const DEFAULT_SMS_SETTINGS = {
+  scoreMessage90: '훌륭합니다!',
+  scoreMessage80: '잘했어요!',
+  scoreMessage70: '조금만 더 노력하면 완벽해요!',
+  scoreMessage60: '조금 더 복습이 필요해요.',
+  scoreMessageBelow: '열심히 복습해주세요!',
+  sectionFeedback90: '우수',
+  sectionFeedback80: '양호',
+  sectionFeedback70: '보통',
+  sectionFeedback60: '노력',
+  sectionFeedbackBelow: '복습필요',
+  taskTypeLight: '기본',
+  taskTypeMedium: '보충',
+  taskTypeHeavy: '심화',
+  defaultTaskLight: '시험지에 오답문제 정리해오기',
+  defaultTaskMedium: '수업노트 필기 다시하고 오답문제 정리하기',
+  defaultTaskHeavy: '동영상 수업 내용복습, 수업노트 필기, 오답정리해오기',
+  academyName: '목동에이원과학학원',
+};
+
 // 점수에 따른 평가 메시지
-function getScoreMessage(score: number): string {
-  if (score >= 90) return '훌륭합니다!';
-  if (score >= 80) return '잘했어요!';
-  if (score >= 70) return '조금만 더 노력하면 완벽해요!';
-  if (score >= 60) return '조금 더 복습이 필요해요.';
-  return '열심히 복습해주세요!';
+function getScoreMessage(score: number, settings?: SmsSettings | null): string {
+  const s = settings || DEFAULT_SMS_SETTINGS;
+  if (score >= 90) return s.scoreMessage90 || DEFAULT_SMS_SETTINGS.scoreMessage90;
+  if (score >= 80) return s.scoreMessage80 || DEFAULT_SMS_SETTINGS.scoreMessage80;
+  if (score >= 70) return s.scoreMessage70 || DEFAULT_SMS_SETTINGS.scoreMessage70;
+  if (score >= 60) return s.scoreMessage60 || DEFAULT_SMS_SETTINGS.scoreMessage60;
+  return s.scoreMessageBelow || DEFAULT_SMS_SETTINGS.scoreMessageBelow;
 }
 
 // 파트별 점수에 따른 한단어 피드백
-function getSectionFeedback(percentage: number): string {
-  if (percentage >= 90) return '우수';
-  if (percentage >= 80) return '양호';
-  if (percentage >= 70) return '보통';
-  if (percentage >= 60) return '노력';
-  return '복습필요';
+function getSectionFeedback(percentage: number, settings?: SmsSettings | null): string {
+  const s = settings || DEFAULT_SMS_SETTINGS;
+  if (percentage >= 90) return s.sectionFeedback90 || DEFAULT_SMS_SETTINGS.sectionFeedback90;
+  if (percentage >= 80) return s.sectionFeedback80 || DEFAULT_SMS_SETTINGS.sectionFeedback80;
+  if (percentage >= 70) return s.sectionFeedback70 || DEFAULT_SMS_SETTINGS.sectionFeedback70;
+  if (percentage >= 60) return s.sectionFeedback60 || DEFAULT_SMS_SETTINGS.sectionFeedback60;
+  return s.sectionFeedbackBelow || DEFAULT_SMS_SETTINGS.sectionFeedbackBelow;
 }
 
 // 과제 유형 한글명
-function getTaskTypeName(taskType: string): string {
+function getTaskTypeName(taskType: string, settings?: SmsSettings | null): string {
+  const s = settings || DEFAULT_SMS_SETTINGS;
   switch (taskType) {
-    case 'light': return '기본';
-    case 'medium': return '보충';
-    case 'heavy': return '심화';
-    default: return '기본';
+    case 'light': return s.taskTypeLight || DEFAULT_SMS_SETTINGS.taskTypeLight;
+    case 'medium': return s.taskTypeMedium || DEFAULT_SMS_SETTINGS.taskTypeMedium;
+    case 'heavy': return s.taskTypeHeavy || DEFAULT_SMS_SETTINGS.taskTypeHeavy;
+    default: return s.taskTypeLight || DEFAULT_SMS_SETTINGS.taskTypeLight;
+  }
+}
+
+// 기본 과제 텍스트 가져오기 (테스트별 과제가 비어있을 때 사용)
+function getDefaultTask(taskType: string, settings?: SmsSettings | null): string {
+  const s = settings || DEFAULT_SMS_SETTINGS;
+  switch (taskType) {
+    case 'light': return s.defaultTaskLight || DEFAULT_SMS_SETTINGS.defaultTaskLight;
+    case 'medium': return s.defaultTaskMedium || DEFAULT_SMS_SETTINGS.defaultTaskMedium;
+    case 'heavy': return s.defaultTaskHeavy || DEFAULT_SMS_SETTINGS.defaultTaskHeavy;
+    default: return s.defaultTaskLight || DEFAULT_SMS_SETTINGS.defaultTaskLight;
   }
 }
 
@@ -64,9 +101,11 @@ function getTaskTypeName(taskType: string): string {
 export function generateTestResultMessage(result: TestResultSMS): string {
   const date = new Date(result.completedAt);
   const dateStr = `${date.getMonth() + 1}/${date.getDate()}`;
+  const settings = result.smsSettings;
+  const academyName = settings?.academyName || DEFAULT_SMS_SETTINGS.academyName;
 
   // LMS (장문 문자) 형식으로 작성
-  let message = `[에이원과학학원 성적알림]
+  let message = `[${academyName} 성적알림]
 
 ${result.studentName} 학생
 ${result.testName} 결과
@@ -74,7 +113,7 @@ ${result.testName} 결과
 ${dateStr} 테스트 결과
 총점: ${result.score}점
 정답: ${result.correctAnswers}/${result.totalQuestions}문항
-${getScoreMessage(result.score)}
+${getScoreMessage(result.score, settings)}
 
 [파트별 성적]
 `;
@@ -83,21 +122,26 @@ ${getScoreMessage(result.score)}
   result.sectionScores.forEach((section) => {
     const sectionName = section.sectionName || `파트${section.sectionNumber}`;
     const percentage = Math.round((section.correct / section.total) * 100);
-    const feedback = getSectionFeedback(percentage);
+    const feedback = getSectionFeedback(percentage, settings);
     message += `${sectionName}: ${section.correct}/${section.total} (${feedback})\n`;
   });
 
   // 보충 과제 안내
-  const tasksWithWork = result.assignedTasks.filter(t => t.task && t.task.trim() !== '');
+  const tasksWithWork = result.assignedTasks.map(t => ({
+    ...t,
+    // 테스트에서 과제가 비어있으면 기본 과제 사용
+    task: (t.task && t.task.trim() !== '') ? t.task : getDefaultTask(t.taskType, settings)
+  })).filter(t => t.task && t.task.trim() !== '');
+
   if (tasksWithWork.length > 0) {
     message += '\n[보충 과제]\n';
     tasksWithWork.forEach(task => {
       const sectionName = task.sectionName || `파트${task.sectionNumber}`;
-      message += `${sectionName}(${getTaskTypeName(task.taskType)}): ${task.task}\n`;
+      message += `${sectionName}(${getTaskTypeName(task.taskType, settings)}): ${task.task}\n`;
     });
   }
 
-  message += '\n문의: 목동에이원과학학원';
+  message += `\n문의: ${academyName}`;
 
   return message;
 }

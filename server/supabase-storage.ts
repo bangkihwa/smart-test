@@ -1,6 +1,6 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import type { IStorage } from './storage';
-import type { Student, Test, TestResult, InsertStudent, InsertTest, InsertTestResult } from '@shared/schema';
+import type { Student, Test, TestResult, InsertStudent, InsertTest, InsertTestResult, SmsSettings, InsertSmsSettings } from '@shared/schema';
 
 export class SupabaseStorage implements IStorage {
   private supabase: SupabaseClient;
@@ -429,5 +429,89 @@ export class SupabaseStorage implements IStorage {
 
     if (error) throw new Error(`Failed to update special note: ${error.message}`);
     return this.mapTestResult(data);
+  }
+
+  // SMS 설정 관련 메서드
+  async getSmsSettings(): Promise<SmsSettings | null> {
+    const { data, error } = await this.supabase
+      .from('sms_settings')
+      .select('*')
+      .limit(1)
+      .single();
+
+    if (error || !data) return null;
+    return this.mapSmsSettings(data);
+  }
+
+  async updateSmsSettings(settings: Partial<InsertSmsSettings>): Promise<SmsSettings> {
+    // 먼저 기존 설정이 있는지 확인
+    const existing = await this.getSmsSettings();
+
+    const updateData: any = {};
+    if (settings.scoreMessage90 !== undefined) updateData.score_message_90 = settings.scoreMessage90;
+    if (settings.scoreMessage80 !== undefined) updateData.score_message_80 = settings.scoreMessage80;
+    if (settings.scoreMessage70 !== undefined) updateData.score_message_70 = settings.scoreMessage70;
+    if (settings.scoreMessage60 !== undefined) updateData.score_message_60 = settings.scoreMessage60;
+    if (settings.scoreMessageBelow !== undefined) updateData.score_message_below = settings.scoreMessageBelow;
+    if (settings.sectionFeedback90 !== undefined) updateData.section_feedback_90 = settings.sectionFeedback90;
+    if (settings.sectionFeedback80 !== undefined) updateData.section_feedback_80 = settings.sectionFeedback80;
+    if (settings.sectionFeedback70 !== undefined) updateData.section_feedback_70 = settings.sectionFeedback70;
+    if (settings.sectionFeedback60 !== undefined) updateData.section_feedback_60 = settings.sectionFeedback60;
+    if (settings.sectionFeedbackBelow !== undefined) updateData.section_feedback_below = settings.sectionFeedbackBelow;
+    if (settings.taskTypeLight !== undefined) updateData.task_type_light = settings.taskTypeLight;
+    if (settings.taskTypeMedium !== undefined) updateData.task_type_medium = settings.taskTypeMedium;
+    if (settings.taskTypeHeavy !== undefined) updateData.task_type_heavy = settings.taskTypeHeavy;
+    if (settings.defaultTaskLight !== undefined) updateData.default_task_light = settings.defaultTaskLight;
+    if (settings.defaultTaskMedium !== undefined) updateData.default_task_medium = settings.defaultTaskMedium;
+    if (settings.defaultTaskHeavy !== undefined) updateData.default_task_heavy = settings.defaultTaskHeavy;
+    if (settings.academyName !== undefined) updateData.academy_name = settings.academyName;
+    updateData.updated_at = new Date().toISOString();
+
+    if (existing) {
+      // 업데이트
+      const { data, error } = await this.supabase
+        .from('sms_settings')
+        .update(updateData)
+        .eq('id', existing.id)
+        .select()
+        .single();
+
+      if (error) throw new Error(`Failed to update SMS settings: ${error.message}`);
+      return this.mapSmsSettings(data);
+    } else {
+      // 새로 생성
+      const { data, error } = await this.supabase
+        .from('sms_settings')
+        .insert(updateData)
+        .select()
+        .single();
+
+      if (error) throw new Error(`Failed to create SMS settings: ${error.message}`);
+      return this.mapSmsSettings(data);
+    }
+  }
+
+  private mapSmsSettings(data: any): SmsSettings {
+    return {
+      id: data.id,
+      scoreMessage90: data.score_message_90 || '훌륭합니다!',
+      scoreMessage80: data.score_message_80 || '잘했어요!',
+      scoreMessage70: data.score_message_70 || '조금만 더 노력하면 완벽해요!',
+      scoreMessage60: data.score_message_60 || '조금 더 복습이 필요해요.',
+      scoreMessageBelow: data.score_message_below || '열심히 복습해주세요!',
+      sectionFeedback90: data.section_feedback_90 || '우수',
+      sectionFeedback80: data.section_feedback_80 || '양호',
+      sectionFeedback70: data.section_feedback_70 || '보통',
+      sectionFeedback60: data.section_feedback_60 || '노력',
+      sectionFeedbackBelow: data.section_feedback_below || '복습필요',
+      taskTypeLight: data.task_type_light || '기본',
+      taskTypeMedium: data.task_type_medium || '보충',
+      taskTypeHeavy: data.task_type_heavy || '심화',
+      defaultTaskLight: data.default_task_light || '시험지에 오답문제 정리해오기',
+      defaultTaskMedium: data.default_task_medium || '수업노트 필기 다시하고 오답문제 정리하기',
+      defaultTaskHeavy: data.default_task_heavy || '동영상 수업 내용복습, 수업노트 필기, 오답정리해오기',
+      academyName: data.academy_name || '목동에이원과학학원',
+      updatedAt: new Date(data.updated_at || Date.now()),
+    };
   }
 }
