@@ -24,12 +24,14 @@ const SUBJECTS = [
 ];
 import { Link } from "wouter";
 import Navigation from "@/components/navigation";
+import OMRSheetGenerator from "@/components/omr-sheet-generator";
+import OMRScanner from "@/components/omr-scanner/OMRScanner";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import type { Student, Test, TestResult, GradeLevel } from "@/lib/types";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { format } from 'date-fns';
 
-type AdminView = 'dashboard' | 'students' | 'tests' | 'test-manage' | 'results' | 'analysis' | 'special' | 'sms';
+type AdminView = 'dashboard' | 'students' | 'tests' | 'test-manage' | 'results' | 'analysis' | 'special' | 'sms' | 'omr-scan';
 
 export default function AdminDashboard() {
   const { toast } = useToast();
@@ -797,6 +799,7 @@ export default function AdminDashboard() {
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
+                          <OMRSheetGenerator test={test} />
                           <Button
                             variant="ghost"
                             size="sm"
@@ -1550,6 +1553,7 @@ export default function AdminDashboard() {
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
+                          <OMRSheetGenerator test={test} />
                           <Button
                             variant="outline"
                             size="sm"
@@ -2546,7 +2550,7 @@ DNA 구조(${smsSettingsForm.taskTypeHeavy}): ${smsSettingsForm.defaultTaskHeavy
           <div className="flex items-center justify-between p-4">
             <h1 className="text-lg font-bold text-foreground">관리자</h1>
             <div className="flex space-x-1 overflow-x-auto">
-              {(['dashboard', 'students', 'tests', 'test-manage', 'results', 'analysis', 'special', 'sms'] as AdminView[]).map((view) => (
+              {(['dashboard', 'students', 'tests', 'test-manage', 'results', 'analysis', 'special', 'sms', 'omr-scan'] as AdminView[]).map((view) => (
                 <Button
                   key={view}
                   variant={currentView === view ? "default" : "ghost"}
@@ -2560,7 +2564,8 @@ DNA 구조(${smsSettingsForm.taskTypeHeavy}): ${smsSettingsForm.defaultTaskHeavy
                    view === 'test-manage' ? '테스트관리' :
                    view === 'results' ? '성적' :
                    view === 'analysis' ? '분석' :
-                   view === 'special' ? '특별관리' : 'SMS설정'}
+                   view === 'special' ? '특별관리' :
+                   view === 'sms' ? 'SMS설정' : 'OMR스캔'}
                 </Button>
               ))}
             </div>
@@ -2570,7 +2575,7 @@ DNA 구조(${smsSettingsForm.taskTypeHeavy}): ${smsSettingsForm.defaultTaskHeavy
         {/* Desktop Tabs */}
         <div className="hidden md:block border-b border-border">
           <div className="flex space-x-8 px-8 pt-4">
-            {(['dashboard', 'students', 'tests', 'test-manage', 'results', 'analysis', 'special', 'sms'] as AdminView[]).map((view) => (
+            {(['dashboard', 'students', 'tests', 'test-manage', 'results', 'analysis', 'special', 'sms', 'omr-scan'] as AdminView[]).map((view) => (
               <button
                 key={view}
                 onClick={() => setCurrentView(view)}
@@ -2578,7 +2583,7 @@ DNA 구조(${smsSettingsForm.taskTypeHeavy}): ${smsSettingsForm.defaultTaskHeavy
                   currentView === view
                     ? 'border-primary text-primary'
                     : 'border-transparent text-muted-foreground hover:text-foreground'
-                } ${view === 'special' ? 'text-destructive' : ''}`}
+                } ${view === 'special' ? 'text-destructive' : ''} ${view === 'omr-scan' ? 'text-blue-600' : ''}`}
                 data-testid={`tab-${view}`}
               >
                 {view === 'dashboard' ? '대시보드' :
@@ -2587,7 +2592,8 @@ DNA 구조(${smsSettingsForm.taskTypeHeavy}): ${smsSettingsForm.defaultTaskHeavy
                  view === 'test-manage' ? '테스트 관리' :
                  view === 'results' ? '성적 조회' :
                  view === 'analysis' ? '학생별 분석' :
-                 view === 'special' ? '특별관리' : 'SMS설정'}
+                 view === 'special' ? '특별관리' :
+                 view === 'sms' ? 'SMS설정' : 'OMR 스캔'}
               </button>
             ))}
           </div>
@@ -2601,6 +2607,17 @@ DNA 구조(${smsSettingsForm.taskTypeHeavy}): ${smsSettingsForm.defaultTaskHeavy
         {currentView === 'analysis' && renderAnalysis()}
         {currentView === 'special' && renderSpecial()}
         {currentView === 'sms' && renderSmsSettings()}
+        {currentView === 'omr-scan' && (
+          <div className="p-6 lg:p-8">
+            <div className="mb-8">
+              <h2 className="text-3xl font-bold text-foreground mb-2">OMR 스캔</h2>
+              <p className="text-muted-foreground">종이 답안지를 촬영하여 자동으로 성적을 입력합니다</p>
+            </div>
+            <div className="max-w-2xl">
+              <OMRScanner />
+            </div>
+          </div>
+        )}
       </main>
 
       <Navigation />

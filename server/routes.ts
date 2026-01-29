@@ -4,6 +4,23 @@ import { storage } from "./storage";
 import { insertStudentSchema, insertTestSchema, insertTestResultSchema, insertSmsSettingsSchema } from "@shared/schema";
 import { z } from "zod";
 import { sendTestResultSMS, sendTestSMS } from "./sms-service";
+import { omrProcessor, type OMRScanResult } from "./omr-service";
+import multer from "multer";
+
+// multer 설정 (메모리 저장)
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB 제한
+  },
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype.startsWith('image/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only image files are allowed'));
+    }
+  }
+});
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Student routes
@@ -500,6 +517,233 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error updating SMS settings:", error);
       res.status(500).json({ message: "Failed to update SMS settings" });
+    }
+  });
+
+  // ========================================
+  // OMR 스캔 API 엔드포인트
+  // ========================================
+
+  // OMR 이미지 스캔 및 인식
+  app.post("/api/omr/scan", upload.single('image'), async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({
+          success: false,
+          message: "이미지 파일이 필요합니다"
+        });
+      }
+
+      console.log(`OMR 스캔 시작: ${req.file.originalname}, 크기: ${req.file.size} bytes`);
+
+      // OMR 처리
+      const result = await omrProcessor.processOMRSheet(req.file.buffer);
+
+      // 학생 정보 조회 (학번으로)
+      let studentInfo = null;
+      if (result.studentId) {
+        const student = await storage.getStudentByStudentId(result.studentId);
+        if (student) {
+          studentInfo = {
+            id: student.id,
+            studentId: student.studentId,
+            name: student.name,
+            grade: student.grade
+          };
+        }
+      }
+
+      // 테스트 정보 조회
+      let testInfo = null;
+      if (result.testId) {
+        const test = await storage.getTestByTestId(result.testId);
+        if (test) {
+          testInfo = {
+            id: test.id,
+            testId: test.testId,
+            name: test.name,
+            subject: test.subject,
+            grade: test.grade
+          };
+        }
+      }
+
+      res.json({
+        success: result.success,
+        scanResult: result,
+        studentInfo,
+        testInfo,
+        needsReview: result.confidence < 0.8 || result.errors.length > 0
+      });
+
+    } catch (error) {
+      console.error("OMR 스캔 오류:", error);
+      res.status(500).json({
+        success: false,
+        message: "OMR 스캔 처리 중 오류가 발생했습니다",
+        error: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
+  // OMR 인식 결과 확인 후 제출
+  app.post("/api/omr/submit", async (req, res) => {
+    try {
+      const { studentId, testId, answers, submitSource = 'omr-scan' } = req.body;
+
+      // 필수 값 검증
+      if (!studentId || !testId || !answers) {
+        return res.status(400).json({
+          success: false,
+          message: "학번, 테스트 ID, 답안이 모두 필요합니다"
+        });
+      }
+
+      // 학생 존재 확인
+      const student = await storage.getStudentByStudentId(studentId);
+      if (!student) {
+        return res.status(404).json({
+          success: false,
+          message: `학생을 찾을 수 없습니다: ${studentId}`
+        });
+      }
+
+      // 테스트 존재 확인
+      const test = await storage.getTestByTestId(testId);
+      if (!test) {
+        return res.status(404).json({
+          success: false,
+          message: `테스트를 찾을 수 없습니다: ${testId}`
+        });
+      }
+
+      // 채점 로직 (기존 submit 로직과 동일)
+      const sectionScores: {
+        sectionNumber: number;
+        correct: number;
+        total: number;
+        wrongAnswers: number[];
+      }[] = [];
+
+      const assignedTasks: {
+        sectionNumber: number;
+        taskType: 'light' | 'medium' | 'heavy';
+        task: string;
+      }[] = [];
+
+      let totalScore = 0;
+      const totalQuestions = 30;
+
+      for (const section of test.sections) {
+        const sectionAnswers = answers.slice(
+          (section.sectionNumber - 1) * 10,
+          section.sectionNumber * 10
+        );
+
+        let correct = 0;
+        const wrongAnswers: number[] = [];
+
+        for (let i = 0; i < section.answers.length; i++) {
+          const questionNumber = (section.sectionNumber - 1) * 10 + i + 1;
+          if (section.answers[i] === sectionAnswers[i]) {
+            correct++;
+            totalScore++;
+          } else {
+            wrongAnswers.push(questionNumber);
+          }
+        }
+
+        sectionScores.push({
+          sectionNumber: section.sectionNumber,
+          correct,
+          total: section.answers.length,
+          wrongAnswers
+        });
+
+        // 오답 개수에 따른 과제 유형
+        const wrongCount = section.answers.length - correct;
+        let taskType: 'light' | 'medium' | 'heavy';
+        if (wrongCount <= 2) {
+          taskType = 'light';
+        } else if (wrongCount <= 4) {
+          taskType = 'medium';
+        } else {
+          taskType = 'heavy';
+        }
+
+        assignedTasks.push({
+          sectionNumber: section.sectionNumber,
+          taskType,
+          task: section.assignments[taskType]
+        });
+      }
+
+      const finalScore = Math.round((totalScore / totalQuestions) * 100);
+
+      // 결과 저장
+      const testResult = await storage.createTestResult({
+        studentId: student.id,
+        testId: test.id,
+        answers,
+        score: finalScore,
+        sectionScores,
+        assignedTasks
+      });
+
+      // SMS 발송 (비동기)
+      if (student.parentPhone) {
+        sendTestResultSMS(student, test, testResult).catch(err => {
+          console.error("SMS 발송 실패:", err);
+        });
+      }
+
+      res.json({
+        success: true,
+        testResult: {
+          ...testResult,
+          studentName: student.name,
+          testName: test.name
+        }
+      });
+
+    } catch (error) {
+      console.error("OMR 제출 오류:", error);
+      res.status(500).json({
+        success: false,
+        message: "결과 저장 중 오류가 발생했습니다"
+      });
+    }
+  });
+
+  // 학생 목록 조회 (OMR 스캔에서 학생 검색용)
+  app.get("/api/omr/students", async (req, res) => {
+    try {
+      const { search } = req.query;
+      const students = await storage.searchStudents(search as string, undefined);
+      res.json(students.map(s => ({
+        id: s.id,
+        studentId: s.studentId,
+        name: s.name,
+        grade: s.grade
+      })));
+    } catch (error) {
+      res.status(500).json({ message: "학생 목록 조회 실패" });
+    }
+  });
+
+  // 테스트 목록 조회 (OMR 스캔에서 테스트 선택용)
+  app.get("/api/omr/tests", async (req, res) => {
+    try {
+      const tests = await storage.getAllTests();
+      res.json(tests.map(t => ({
+        id: t.id,
+        testId: t.testId,
+        name: t.name,
+        subject: t.subject,
+        grade: t.grade
+      })));
+    } catch (error) {
+      res.status(500).json({ message: "테스트 목록 조회 실패" });
     }
   });
 
