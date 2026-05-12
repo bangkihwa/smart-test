@@ -36,6 +36,8 @@ export default function StudentTest() {
   const [selectedTest, setSelectedTest] = useState<Test | null>(null);
   const [student, setStudent] = useState<Student | null>(null);
   const [selectedGradeFilter, setSelectedGradeFilter] = useState<string>('all');
+  const [selectedSubjectFilter, setSelectedSubjectFilter] = useState<string>('all');
+  const [searchQuery, setSearchQuery] = useState<string>('');
 
   // Check localStorage for existing student session on mount
   useEffect(() => {
@@ -338,23 +340,56 @@ export default function StudentTest() {
               <p className="text-muted-foreground">풀이한 단원을 선택하고 답을 입력하세요</p>
             </div>
 
-            {/* 학년 필터 */}
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-foreground mb-2">학년 선택</label>
-              <Select value={selectedGradeFilter} onValueChange={setSelectedGradeFilter}>
-                <SelectTrigger className="w-full" data-testid="grade-filter-select">
-                  <SelectValue placeholder="학년을 선택하세요" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">모든 학년</SelectItem>
-                  <SelectItem value="중1">중등1학년</SelectItem>
-                  <SelectItem value="중2">중등2학년</SelectItem>
-                  <SelectItem value="중3">중등3학년</SelectItem>
-                  <SelectItem value="고1">고등1학년</SelectItem>
-                  <SelectItem value="고2">고등2학년</SelectItem>
-                  <SelectItem value="고3">고등3학년</SelectItem>
-                </SelectContent>
-              </Select>
+            {/* 검색창 */}
+            <div className="mb-3">
+              <Input
+                placeholder="테스트 이름 또는 단원명 검색..."
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                className="w-full"
+              />
+            </div>
+
+            {/* 학년 + 과목 필터 */}
+            <div className="mb-4 flex gap-2">
+              <div className="flex-1">
+                <label className="block text-sm font-medium text-foreground mb-2">학년</label>
+                <Select value={selectedGradeFilter} onValueChange={v => { setSelectedGradeFilter(v); setSelectedSubjectFilter('all'); }}>
+                  <SelectTrigger className="w-full" data-testid="grade-filter-select">
+                    <SelectValue placeholder="학년 선택" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">모든 학년</SelectItem>
+                    <SelectItem value="중1">중등1학년</SelectItem>
+                    <SelectItem value="중2">중등2학년</SelectItem>
+                    <SelectItem value="중3">중등3학년</SelectItem>
+                    <SelectItem value="고1">고등1학년</SelectItem>
+                    <SelectItem value="고2">고등2학년</SelectItem>
+                    <SelectItem value="고3">고등3학년</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex-1">
+                <label className="block text-sm font-medium text-foreground mb-2">과목</label>
+                <Select value={selectedSubjectFilter} onValueChange={setSelectedSubjectFilter}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="과목 선택" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">모든 과목</SelectItem>
+                    {Array.from(new Set(
+                      tests
+                        ?.filter(t => selectedGradeFilter === 'all' || !t.grade || normalizeGrade(t.grade) === selectedGradeFilter)
+                        .map(t => t.subject)
+                        .filter(Boolean) ?? []
+                    ))
+                      .sort()
+                      .map(subject => (
+                        <SelectItem key={subject} value={subject}>{subject}</SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
             {testsLoading ? (
@@ -369,14 +404,20 @@ export default function StudentTest() {
               </div>
             ) : (
               <div className="space-y-3">
-                {tests?.filter(test => {
-                  // 학년 필터가 'all'이면 모든 테스트 표시
-                  if (selectedGradeFilter === 'all') return true;
-                  // 테스트에 학년이 없으면 모든 필터에서 표시
-                  if (!test.grade) return true;
-                  // 선택된 학년과 테스트 학년이 일치하는지 확인
-                  return normalizeGrade(test.grade) === selectedGradeFilter;
-                }).map((test: Test) => (
+                {tests
+                  ?.filter(test => {
+                    if (selectedGradeFilter !== 'all' && test.grade && normalizeGrade(test.grade) !== selectedGradeFilter) return false;
+                    if (selectedSubjectFilter !== 'all' && test.subject !== selectedSubjectFilter) return false;
+                    if (searchQuery.trim()) {
+                      const q = searchQuery.trim().toLowerCase();
+                      const inName = test.name.toLowerCase().includes(q);
+                      const inSection = test.sections.some(s => s.name.toLowerCase().includes(q));
+                      if (!inName && !inSection) return false;
+                    }
+                    return true;
+                  })
+                  .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+                  .map((test: Test) => (
                   <Card 
                     key={test.id} 
                     className="cursor-pointer hover:shadow-lg transition-shadow"
@@ -391,6 +432,9 @@ export default function StudentTest() {
                               {test.subject}
                             </span>
                             <span className="text-xs text-muted-foreground">총 30문항</span>
+                            <span className="text-xs text-muted-foreground ml-auto">
+                              {new Date(test.createdAt).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })}
+                            </span>
                           </div>
                           <h3 className="text-lg font-semibold text-foreground mb-1">{test.name}</h3>
                           <p className="text-sm text-muted-foreground">

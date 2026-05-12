@@ -116,7 +116,7 @@ export default function StudentDashboard({ student, onStartTest, onLogout }: Stu
       // 해당 테스트의 섹션 정보 가져오기
       const test = tests?.find(t => t.id === result.testId);
 
-      result.sectionScores.forEach(section => {
+      (Array.isArray(result.sectionScores) ? result.sectionScores : []).forEach(section => {
         // 테스트에서 해당 섹션의 이름 찾기
         const testSection = test?.sections.find(s => s.sectionNumber === section.sectionNumber);
         const sectionName = testSection?.name || `섹션 ${section.sectionNumber}`;
@@ -434,7 +434,7 @@ export default function StudentDashboard({ student, onStartTest, onLogout }: Stu
                     </Badge>
                   </div>
                   <div className="flex items-center space-x-2 text-xs text-muted-foreground">
-                    <span>섹션 {result.sectionScores.length}개</span>
+                    <span>섹션 {(result.sectionScores || []).length}개</span>
                     <span>•</span>
                     <span>과제 {result.assignedTasks.length}개</span>
                   </div>
